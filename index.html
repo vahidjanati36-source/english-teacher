@@ -69,7 +69,7 @@
       display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
     }
     #micBtn{grid-column:span 2; padding:18px; font-size:18px}
-    #micBtn.rec{
+    #micBtn.rec, #customTranslateBtn.rec {
       background:var(--r); color:#fff; animation:blink 1s infinite;
     }
     @keyframes blink{50%{opacity:.7}}
@@ -170,7 +170,7 @@
 
         <div class="big-btns">
           <button id="micBtn" class="main">🎤 حالا انگلیسی بگو</button>
-          <button id="faSpeakBtn">🔊 تکرار فارسی</button>
+          <button id="customTranslateBtn">📝 جمله دلخواه</button>
           <button id="showBtn">👁 نمایش جواب</button>
         </div>
 
@@ -280,7 +280,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.1.4";
+    const APP_VERSION = "1.1.6";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -334,9 +334,49 @@
     let voices = [];
     let recog = null;
 
-    // --- TIMER VARIABLES ---
+    // --- TIMER & ALARM VARIABLES ---
     let timerInterval = null;
     let timerSeconds = 0;
+
+    // ✅ تابع پخش صدای آلارم ملایم و دلنشین (بدون نیاز به فایل خارجی)
+    function playGentleAlarm(durationMs = 10000) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+
+        let startTime = ctx.currentTime;
+        const interval = 1.5; // هر ۱.۵ ثانیه یک زنگ
+        const repeats = Math.floor(durationMs / 1000 / interval);
+
+        for (let i = 0; i < repeats; i++) {
+          const time = startTime + (i * interval);
+          
+          // ساخت یک آکورد ملایم (دو نت)
+          [440, 554.37].forEach(freq => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'sine'; // موج سینوسی (صدای نرم و بدون خش)
+            osc.frequency.setValueAtTime(freq, time);
+            
+            // پوشش صوتی (Fade in/out) برای جلوگیری از صدای شوک‌آور
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.3, time + 0.1); 
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 1.2);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(time);
+            osc.stop(time + 1.2);
+          });
+        }
+      } catch (e) {
+        console.log("Alarm audio error:", e);
+      }
+    }
 
     $("timerBtn").onclick = () => {
       if (timerInterval) {
@@ -349,6 +389,16 @@
         if (!isNaN(mins) && mins > 0) {
           timerSeconds = mins * 60;
           $("timerBtn").textContent = "🛑";
+          
+          // آماده‌سازی AudioContext با اولین کلیک کاربر (برای دور زدن محدودیت مرورگرها)
+          try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+              const ctx = new AudioContext();
+              if (ctx.state === 'suspended') ctx.resume();
+            }
+          } catch (e) {}
+
           timerInterval = setInterval(() => {
             timerSeconds--;
             if (timerSeconds <= 0) {
@@ -357,10 +407,17 @@
               $("timerBtn").textContent = "⏱️";
               $("timerText").textContent = "⏰ پایان!";
               
-              textToSpeech("Time is up! Your session is finished.", "en-US", 1);
+              // ✅ پخش ۱۰ ثانیه آلارم ملایم
+              playGentleAlarm(10000);
+              
+              // اعلام صوتی بعد از ۱ ثانیه
+              setTimeout(() => {
+                textToSpeech("Time is up! Your session is finished.", "en-US", 1);
+              }, 1000);
+              
               setTimeout(() => {
                 textToSpeech("زمان جلسه شما تمام شد.", "fa-IR", 1);
-              }, 2500);
+              }, 3500);
               
             } else {
               const m = Math.floor(timerSeconds / 60);
@@ -591,7 +648,7 @@
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data?.error?.message || "خطای ارتباط با Gemini";
+        const msg = data?.error?.message || "خطای ارتباط با Gemini (Failed to fetch)";
         throw new Error(msg);
       }
 
@@ -724,16 +781,85 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     window.speakWord = function (word, rate) {
       if (!word) return;
-      // ✅ فیلتر کردن کلمات غیر انگلیسی
+      // فیلتر کردن کلمات غیر انگلیسی
       const cleanWord = word.replace(/[^a-zA-Z\s\-']/g, "").trim(); 
       textToSpeech(cleanWord || word, "en-US", rate);
     };
 
+    // ✅ قابلیت جدید: ترجمه جمله دلخواه فارسی کاربر
+    $("customTranslateBtn").onclick = async () => {
+      if ($("customTranslateBtn").classList.contains("rec")) return;
+
+      const originalText = $("customTranslateBtn").innerHTML;
+      $("customTranslateBtn").classList.add("rec");
+      $("customTranslateBtn").innerHTML = "🔴 بگویید...";
+
+      try {
+        const heardPersian = await listen("fa-IR", (text) => {
+          $("faText").innerHTML = `<span class="small" style="color:#666">شنیده شد: ${text}</span>`;
+        });
+
+        if (!heardPersian) {
+          throw new Error("چیزی شنیده نشد. لطفا دوباره تلاش کنید.");
+        }
+
+        $("customTranslateBtn").innerHTML = "⏳ ترجمه...";
+        $("faText").innerHTML = '<div class="loader">⏳ هوش مصنوعی در حال ترجمه جمله شماست...</div>';
+
+        const prompt = `
+کاربر این جمله فارسی را می‌خواهد به انگلیسی تمرین کند:
+"${heardPersian}"
+سطح کاربر: ${settings.level}
+
+یک شیء JSON دقیقاً با این ساختار برگردان:
+{
+  "fa": "${heardPersian}",
+  "en": "بهترین ترجمه انگلیسی",
+  "alts": ["ترجمه جایگزین ۱", "ترجمه جایگزین ۲"],
+  "note": "توضیح کوتاه گرامری یا اصطلاحی به فارسی",
+  "words": [{"en":"کلمه مهم", "fa":"معنی", "pron":"تلفظ"}]
+}
+فقط JSON برگردان، هیچ متن اضافی ننویس.
+`;
+        const raw = await geminiCall(prompt, "تو یک مترجم و معلم حرفه‌ای زبان انگلیسی هستی.", true);
+        const cleaned = raw.replace(/```json|```/gi, "").trim();
+        const obj = JSON.parse(cleaned);
+
+        const newItem = {
+          ...obj,
+          id: String(Date.now() + Math.random()),
+          topic: "custom",
+          level: settings.level,
+          date: new Date().toISOString()
+        };
+
+        library.push(newItem);
+        saveLibrary();
+        current = newItem;
+
+        // Reset UI
+        $("answerBox").classList.add("hidden");
+        $("heard").innerHTML = "";
+        $("scoreBox").innerHTML = "";
+        $("aiCheckBox").innerHTML = "";
+        $("typeInput").value = "";
+        showCurrent();
+        $("modeInfo").textContent = "✅ جمله اختصاصی شما آماده شد! حالا انگلیسی بگویید.";
+        updateStats();
+
+      } catch (err) {
+        $("faText").textContent = "خطا: " + (err.message || err);
+      } finally {
+        $("customTranslateBtn").classList.remove("rec");
+        $("customTranslateBtn").innerHTML = originalText;
+      }
+    };
+
     $("nextBtn").onclick = nextSentence;
     $("showBtn").onclick = showAnswer;
-    $("faSpeakBtn").onclick = () => current && textToSpeech(current.fa, "fa-IR", 1);
     $("enSpeakBtn").onclick = () => current && textToSpeech(current.en, "en-US", settings.rate);
-    $("enSlowBtn").onclick = () => current && textToSpeech(current.en, "en-US", 0.6);
+    // ✅ سرعت آهسته را به 0.5 تغییر دادم تا کاملاً محسوس باشد
+    $("enSlowBtn").onclick = () => current && textToSpeech(current.en, "en-US", 0.5);
 
     $("starBtn").onclick = () => {
       if (!current) return;
