@@ -20,6 +20,7 @@
     html, body{
       margin:0; padding:0; background:var(--bg); color:var(--t);
       font-family:Tahoma, "Vazirmatn", sans-serif;
+      transition: background-color 0.5s;
     }
     body{padding-bottom:72px}
     header{
@@ -280,7 +281,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.1.6";
+    const APP_VERSION = "1.1.7";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -337,44 +338,66 @@
     // --- TIMER & ALARM VARIABLES ---
     let timerInterval = null;
     let timerSeconds = 0;
+    let audioCtx = null;
 
-    // ✅ تابع پخش صدای آلارم ملایم و دلنشین (بدون نیاز به فایل خارجی)
-    function playGentleAlarm(durationMs = 10000) {
-      try {
+    // ✅ باز کردن قفل صدا برای مرورگر (وقتی کاربر روی دکمه تایمر کلیک می‌کند)
+    function unlockAudio() {
+      if (!audioCtx) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        if (ctx.state === 'suspended') ctx.resume();
-
-        let startTime = ctx.currentTime;
-        const interval = 1.5; // هر ۱.۵ ثانیه یک زنگ
-        const repeats = Math.floor(durationMs / 1000 / interval);
-
-        for (let i = 0; i < repeats; i++) {
-          const time = startTime + (i * interval);
-          
-          // ساخت یک آکورد ملایم (دو نت)
-          [440, 554.37].forEach(freq => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            
-            osc.type = 'sine'; // موج سینوسی (صدای نرم و بدون خش)
-            osc.frequency.setValueAtTime(freq, time);
-            
-            // پوشش صوتی (Fade in/out) برای جلوگیری از صدای شوک‌آور
-            gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(0.3, time + 0.1); 
-            gain.gain.exponentialRampToValueAtTime(0.001, time + 1.2);
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.start(time);
-            osc.stop(time + 1.2);
-          });
+        if (AudioContext) {
+          audioCtx = new AudioContext();
         }
-      } catch (e) {
-        console.log("Alarm audio error:", e);
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      // پخش یک صدای بی‌صدا برای باز کردن قفل مرورگر
+      if (audioCtx) {
+        try {
+          const buffer = audioCtx.createBuffer(1, 1, 22050);
+          const source = audioCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(audioCtx.destination);
+          source.start(0);
+        } catch (e) {}
+      }
+    }
+
+    // ✅ تابع پخش صدای آلارم ملایم ۱۰ ثانیه‌ای
+    function playGentleAlarm() {
+      if (!audioCtx) unlockAudio();
+      
+      if (!audioCtx || audioCtx.state === 'suspended') {
+        // اگر مرورگر کلاً صدا را بلاک کرد، به عنوان جایگزین از گوینده استفاده می‌کند
+        textToSpeech("Time is up! Time is up! Time is up!", "en-US", 0.9);
+        return;
+      }
+
+      const startTime = audioCtx.currentTime;
+      
+      // ساخت ۱۰ زنگ پشت سر هم (هر ثانیه یک زنگ)
+      for (let i = 0; i < 10; i++) {
+        const time = startTime + (i * 1.0);
+        
+        // آکورد ملایم (دو نت با فرکانس‌های آرامش‌بخش)
+        [523.25, 659.25].forEach(freq => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, time);
+          
+          // تنظیم صدای نرم (Fade in/out) برای جلوگیری از شوک
+          gain.gain.setValueAtTime(0, time);
+          gain.gain.linearRampToValueAtTime(0.2, time + 0.05); 
+          gain.gain.exponentialRampToValueAtTime(0.001, time + 0.8);
+          
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          
+          osc.start(time);
+          osc.stop(time + 0.9);
+        });
       }
     }
 
@@ -387,18 +410,11 @@
       } else {
         const mins = parseInt(prompt("چند دقیقه می‌خواهید تمرین کنید؟ (مثلاً 10)", "10"));
         if (!isNaN(mins) && mins > 0) {
+          unlockAudio(); // ✅ باز کردن قفل صدا در لحظه کلیک
+          
           timerSeconds = mins * 60;
           $("timerBtn").textContent = "🛑";
           
-          // آماده‌سازی AudioContext با اولین کلیک کاربر (برای دور زدن محدودیت مرورگرها)
-          try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-              const ctx = new AudioContext();
-              if (ctx.state === 'suspended') ctx.resume();
-            }
-          } catch (e) {}
-
           timerInterval = setInterval(() => {
             timerSeconds--;
             if (timerSeconds <= 0) {
@@ -407,10 +423,16 @@
               $("timerBtn").textContent = "⏱️";
               $("timerText").textContent = "⏰ پایان!";
               
-              // ✅ پخش ۱۰ ثانیه آلارم ملایم
-              playGentleAlarm(10000);
+              // 1. پخش آلارم موزیکال
+              playGentleAlarm();
               
-              // اعلام صوتی بعد از ۱ ثانیه
+              // 2. چشمک زدن صفحه به رنگ زرد (برای اطمینان بصری)
+              document.body.style.backgroundColor = '#ffeb3b';
+              setTimeout(() => { document.body.style.backgroundColor = 'var(--bg)'; }, 300);
+              setTimeout(() => { document.body.style.backgroundColor = '#ffeb3b'; }, 600);
+              setTimeout(() => { document.body.style.backgroundColor = 'var(--bg)'; }, 900);
+
+              // 3. اعلام صوتی
               setTimeout(() => {
                 textToSpeech("Time is up! Your session is finished.", "en-US", 1);
               }, 1000);
@@ -479,8 +501,13 @@
         utterance.lang = lang;
         utterance.rate = rate;
         const languagePrefix = lang.slice(0, 2).toLowerCase();
-        const voice = voices.find(v => v.lang && v.lang.replace("_", "-").toLowerCase() === lang.toLowerCase())
+        
+        // ✅ اولویت دادن به صداهای آفلاین (Local) گوشی تا بدون فیلترشکن هم کار کند
+        const voice = voices.find(v => v.lang && v.lang.replace("_", "-").toLowerCase() === lang.toLowerCase() && v.localService)
+          || voices.find(v => v.lang && v.lang.toLowerCase().startsWith(languagePrefix) && v.localService)
+          || voices.find(v => v.lang && v.lang.replace("_", "-").toLowerCase() === lang.toLowerCase())
           || voices.find(v => v.lang && v.lang.toLowerCase().startsWith(languagePrefix));
+          
         if (voice) utterance.voice = voice;
         utterance.onend = resolve;
         utterance.onerror = resolve;
@@ -781,12 +808,10 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     window.speakWord = function (word, rate) {
       if (!word) return;
-      // فیلتر کردن کلمات غیر انگلیسی
       const cleanWord = word.replace(/[^a-zA-Z\s\-']/g, "").trim(); 
       textToSpeech(cleanWord || word, "en-US", rate);
     };
 
-    // ✅ قابلیت جدید: ترجمه جمله دلخواه فارسی کاربر
     $("customTranslateBtn").onclick = async () => {
       if ($("customTranslateBtn").classList.contains("rec")) return;
 
@@ -837,7 +862,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         saveLibrary();
         current = newItem;
 
-        // Reset UI
         $("answerBox").classList.add("hidden");
         $("heard").innerHTML = "";
         $("scoreBox").innerHTML = "";
@@ -858,7 +882,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("nextBtn").onclick = nextSentence;
     $("showBtn").onclick = showAnswer;
     $("enSpeakBtn").onclick = () => current && textToSpeech(current.en, "en-US", settings.rate);
-    // ✅ سرعت آهسته را به 0.5 تغییر دادم تا کاملاً محسوس باشد
     $("enSlowBtn").onclick = () => current && textToSpeech(current.en, "en-US", 0.5);
 
     $("starBtn").onclick = () => {
