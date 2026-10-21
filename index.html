@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="theme-color" content="#2e7d32" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>معلم زبان من</title>
+  <style>
+    :root{
+      --g:#2e7d32; --gl:#e8f5e9; --r:#c62828; --bg:#f4f6f4; --card:#fff; --t:#222;
+      --line:#e3e3e3; --muted:#6a6a6a; --shadow:rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html, body{
+      margin:0; padding:0; background:var(--bg); color:var(--t);
+      font-family:Tahoma, "Vazirmatn", sans-serif;
+    }
+    body{padding-bottom:72px}
+    header{
+      position:sticky; top:0; z-index:20;
+      display:flex; align-items:center; justify-content:space-between;
+      background:var(--g); color:#fff; padding:12px 16px;
+      box-shadow:0 2px 10px rgba(0,0,0,.08);
+    }
+    header h1{margin:0; font-size:18px}
+    #stats{font-size:12px; opacity:.9}
+    main{max-width:760px; margin:0 auto; padding:12px}
+    section{display:none}
+    section.active{display:block}
+    .card{
+      background:var(--card); border-radius:16px; padding:16px;
+      box-shadow:0 2px 6px var(--shadow); margin-bottom:12px;
+    }
+    .row{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    }
+    select, input, textarea{
+      width:100%; padding:10px 12px; border:1px solid var(--line);
+      border-radius:12px; font-size:15px; background:#fff; color:#111;
+      font-family:inherit;
+    }
+    button{
+      font-family:inherit; font-size:15px; border:none; border-radius:12px;
+      padding:11px 14px; background:var(--gl); color:var(--g);
+      cursor:pointer; font-weight:700;
+    }
+    button.main{background:var(--g); color:#fff}
+    button:disabled{opacity:.55; cursor:not-allowed}
+    .fa{
+      font-size:22px; line-height:1.8; text-align:center; margin:12px 0;
+      color:#1a1a1a;
+    }
+    .en{
+      font-size:22px; direction:ltr; text-align:left; font-family:Arial,sans-serif;
+      font-weight:700; margin:8px 0; line-height:1.6;
+    }
+    .ltr{direction:ltr; text-align:left; font-family:Arial,sans-serif}
+    .big-btns{
+      display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
+    }
+    #micBtn{grid-column:span 2; padding:18px; font-size:18px}
+    #micBtn.rec{
+      background:var(--r); color:#fff; animation:blink 1s infinite;
+    }
+    @keyframes blink{50%{opacity:.7}}
+    #heard{
+      min-height:34px; margin-top:12px; border-radius:12px;
+      background:#fafafa; padding:10px 12px; border:1px solid #f0f0f0;
+      white-space:pre-wrap; line-height:1.7;
+    }
+    .score{
+      font-size:20px; text-align:center; font-weight:900; margin-top:10px;
+    }
+    .hidden{display:none !important}
+    .small{font-size:13px; color:var(--muted)}
+    .word{
+      display:flex; justify-content:space-between; align-items:center;
+      border-bottom:1px dashed #ddd; gap:10px; padding:8px 0;
+    }
+    .word .textWrap{
+      display:flex; gap:8px; align-items:center; flex:1; min-width:0;
+    }
+    .word .ltr{
+      flex:1; min-width:0; overflow-wrap:anywhere;
+    }
+    .item{
+      border-bottom:1px solid #f0f0f0; padding:12px 0;
+    }
+    .item .en{font-size:16px; margin:6px 0}
+    nav{
+      position:fixed; left:0; right:0; bottom:0; z-index:30;
+      display:flex; background:#fff; box-shadow:0 -2px 10px rgba(0,0,0,.08);
+    }
+    nav button{
+      flex:1; background:none; border-radius:0; padding:10px 0;
+      color:#777; font-size:12px; border-top:3px solid transparent;
+    }
+    nav button.active{
+      color:var(--g); border-top-color:var(--g); background:#f8fff9;
+    }
+    .msg{
+      max-width:88%; padding:10px 12px; border-radius:14px; line-height:1.7;
+      white-space:pre-wrap; word-break:break-word;
+    }
+    .msg.user{
+      background:var(--g); color:#fff; align-self:flex-start;
+    }
+    .msg.ai{
+      background:#fff; color:#222; align-self:flex-end;
+      box-shadow:0 2px 5px rgba(0,0,0,.08);
+    }
+    #chatBox{
+      height:calc(100vh - 300px); min-height:220px; overflow-y:auto;
+      display:flex; flex-direction:column; gap:8px; padding:2px 2px 8px;
+    }
+    label{
+      display:block; margin:12px 0 6px; font-size:14px; font-weight:700;
+    }
+    .loader{text-align:center; color:#666; padding:20px 0}
+    .ok{color:var(--g); font-weight:700}
+    .bad{color:var(--r); text-decoration:underline}
+    .status{
+      padding:8px 10px; border-radius:10px; background:#f6f8f6; border:1px solid #ebf0ea;
+      margin-top:8px; font-size:13px; line-height:1.7;
+    }
+    .tiny{font-size:12px; color:#666}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎓 معلم زبان من</h1>
+    <div id="stats">📘 0 جمله</div>
+  </header>
+
+  <main>
+    <section id="tab-practice" class="active">
+      <div class="card">
+        <div class="row">
+          <select id="topicSel"></select>
+          <select id="levelSel">
+            <option value="A1">مبتدی</option>
+            <option value="A2">پایه</option>
+            <option value="B1">متوسط</option>
+            <option value="B2">بالاتر از متوسط</option>
+            <option value="C1">پیشرفته</option>
+          </select>
+        </div>
+        <div id="modeInfo" class="small" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <div class="small" id="cardMeta"></div>
+        <div class="fa" id="faText">برای شروع «جمله بعدی» را بزنید</div>
+
+        <div class="big-btns">
+          <button id="micBtn" class="main">🎤 حالا انگلیسی بگو</button>
+          <button id="faSpeakBtn">🔊 تکرار فارسی</button>
+          <button id="showBtn">👁 نمایش جواب</button>
+        </div>
+
+        <div id="heard"></div>
+        <div id="scoreBox" class="score"></div>
+
+        <div class="row" style="margin-top:10px">
+          <input id="typeInput" class="ltr" placeholder="...or type your answer" />
+          <button id="typeBtn">بررسی</button>
+        </div>
+
+        <div id="answerBox" class="hidden">
+          <hr />
+          <div class="en" id="enText"></div>
+
+          <div class="row">
+            <button id="enSpeakBtn">🔊 عادی</button>
+            <button id="enSlowBtn">🐢 آهسته</button>
+            <button id="starBtn">⭐ ستاره</button>
+            <button id="hardBtn">😓 سخت بود</button>
+          </div>
+
+          <div id="altBox" class="small ltr" style="margin-top:10px"></div>
+          <div id="noteBox" style="margin-top:12px;line-height:1.8"></div>
+          <div id="wordsBox" style="margin-top:12px"></div>
+
+          <button id="aiCheckBtn" style="margin-top:12px;width:100%">🤖 بررسی جمله من توسط معلم</button>
+          <div id="aiCheckBox" style="margin-top:10px; line-height:1.8; white-space:pre-wrap"></div>
+        </div>
+
+        <button id="nextBtn" class="main" style="width:100%;margin-top:12px">⏭ جمله بعدی</button>
+      </div>
+    </section>
+
+    <section id="tab-saved">
+      <div class="card">
+        <div class="row">
+          <input id="searchIn" placeholder="جست‌وجو (فارسی یا انگلیسی)" />
+          <select id="filterSel">
+            <option value="all">همه</option>
+            <option value="star">⭐ ستاره‌دار</option>
+            <option value="hard">😓 سخت</option>
+            <option value="weak">امتیاز کم</option>
+          </select>
+        </div>
+
+        <button id="reviewBtn" class="main" style="width:100%;margin-top:10px">🔁 تمرین مروری همین فهرست</button>
+        <div class="small" id="libCount" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card" id="libList"></div>
+    </section>
+
+    <section id="tab-chat">
+      <div id="chatBox"></div>
+      <div class="row" style="margin-top:8px">
+        <textarea id="chatIn" rows="2" placeholder="سؤالت را بپرس... مثلاً: فرق say و tell چیه؟"></textarea>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="chatSend" class="main" style="flex:2">ارسال</button>
+        <button id="chatMicFa">🎤 فارسی</button>
+        <button id="chatMicEn">🎤 EN</button>
+        <button id="chatClear">🗑</button>
+      </div>
+    </section>
+
+    <section id="tab-settings">
+      <div class="card">
+        <label>🔑 کلید API Gemini</label>
+        <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
+        <div class="small">از aistudio.google.com رایگان دریافت کنید.</div>
+
+        <label>مدل هوش مصنوعی</label>
+        <input id="modelIn" class="ltr" value="gemini-2.0-flash" />
+
+        <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
+        <input id="rateIn" type="range" min="0.5" max="1.3" step="0.1" />
+
+        <label>تعداد جمله در هر بار دریافت</label>
+        <input id="batchIn" type="number" min="3" max="20" />
+
+        <label><input type="checkbox" id="autoFaIn" style="flex:0" /> خواندن خودکار جمله فارسی</label>
+        <label><input type="checkbox" id="autoEnIn" style="flex:0" /> خواندن خودکار انگلیسی هنگام نمایش جواب</label>
+
+        <button id="saveSet" class="main" style="width:100%;margin-top:12px">ذخیره تنظیمات</button>
+      </div>
+
+      <div class="card">
+        <b>💾 پشتیبان‌گیری</b>
+        <div class="row" style="margin-top:10px">
+          <button id="exportBtn">دانلود پشتیبان</button>
+          <button id="importBtn">بازیابی</button>
+          <input type="file" id="importFile" accept=".json" class="hidden" />
+        </div>
+        <button id="testVoice" style="width:100%;margin-top:10px">🔈 تست صداها</button>
+        <div id="voiceInfo" class="small" style="margin-top:8px"></div>
+        <div class="small" style="margin-top:10px">نسخه برنامه: <span id="ver"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-tab="practice" class="active">🎯<br>تمرین</button>
+    <button data-tab="saved">📚<br>کتابخانه</button>
+    <button data-tab="chat">💬<br>معلم</button>
+    <button data-tab="settings">⚙️<br>تنظیمات</button>
+  </nav>
+
+  <script>
+    const APP_VERSION = "1.1.1";
+    const $ = (id) => document.getElementById(id);
+
+    const DB = {
+      get(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : fallback;
+        } catch {
+          return fallback;
+        }
+      },
+      set(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+      }
+    };
+
+    const esc = (value) =>
+      String(value ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+
+    const TOPICS = {
+      daily:"🏠 مکالمه روزمره",
+      movies:"🎬 فیلم و سریال",
+      social:"📱 شبکه‌های اجتماعی",
+      travel:"✈️ سفر و مسافرت",
+      shopping:"🛒 خرید",
+      sport:"⚽ ورزش و باشگاه",
+      hiking:"⛰️ کوهنوردی و طبیعت",
+      restaurant:"🍽 رستوران و کافه",
+      feelings:"😊 احساسات و نظر دادن",
+      mixed:"🔀 ترکیبی"
+    };
+
+    const DEFAULT_SETTINGS = {
+      apiKey:"",
+      model:"gemini-2.0-flash",
+      level:"A2",
+      topic:"daily",
+      rate:0.9,
+      batch:10,
+      autoFa:true,
+      autoEn:true
+    };
+
+    let settings = Object.assign({}, DEFAULT_SETTINGS, DB.get("settings", {}));
+    let library = DB.get("library", []);
+    let chatHist = DB.get("chat", []);
+    let queue = [];
+    let current = null;
+    let lastHeard = "";
+    let reviewMode = false;
+    let voices = [];
+    let recog = null;
+
+    const SAMPLE_SENTENCES = [
+      {fa:"ساعت چند راه می‌افتیم؟", en:"What time are we leaving?", alts:["When are we setting off?"], note:"برای برنامه‌های قطعی آینده از حال استمراری استفاده می‌شود.", words:[{en:"leave",fa:"ترک کردن، راه افتادن",pron:"لیو"}], topic:"hiking"},
+      {fa:"یادت نره آب کافی بیاری.", en:"Don't forget to bring enough water.", alts:["Make sure you bring enough water."], note:"بعد از forget برای کاری که باید انجام شود از to + فعل استفاده می‌کنیم.", words:[{en:"enough",fa:"کافی",pron:"ایناف"}], topic:"hiking"},
+      {fa:"تا قله چقدر راه مونده؟", en:"How far is it to the summit?", alts:["How much farther to the top?"], note:"How far برای پرسیدن فاصله است.", words:[{en:"summit",fa:"قله",pron:"سامیت"}], topic:"hiking"},
+      {fa:"می‌تونم اینو امتحان کنم؟", en:"Can I try this on?", alts:["Could I try this on?"], note:"try on یعنی پوشیدن لباس برای امتحان.", words:[{en:"try on",fa:"پرو کردن",pron:"ترای آن"}], topic:"shopping"},
+      {fa:"یه اتاق برای دو شب رزرو کردم.", en:"I booked a room for two nights.", alts:["I have a reservation for two nights."], note:"book در اینجا یعنی رزرو کردن.", words:[{en:"book",fa:"رزرو کردن",pron:"بوک"}], topic:"travel"},
+      {fa:"بیخیال، مهم نیست.", en:"Never mind, it's not a big deal.", alts:["Forget it, it doesn't matter."], note:"never mind اصطلاح خیلی رایج در فیلم‌هاست.", words:[{en:"deal",fa:"موضوع، معامله",pron:"دیل"}], topic:"movies"},
+      {fa:"این پستو برای دوستام فرستادم.", en:"I sent this post to my friends.", alts:["I shared this post with my friends."], note:"share with یعنی به اشتراک گذاشتن با کسی.", words:[{en:"share",fa:"به اشتراک گذاشتن",pron:"شِر"}], topic:"social"},
+      {fa:"خیلی خسته‌ام ولی ارزششو داشت.", en:"I'm so tired, but it was worth it.", alts:["I'm exhausted, but it was worth it."], note:"worth it یعنی ارزشش را داشت.", words:[{en:"worth",fa:"ارزش",pron:"وِرث"}], topic:"hiking"}
+    ];
+
+    function saveLibrary() {
+      DB.set("library", library);
+    }
+
+    function saveChat() {
+      DB.set("chat", chatHist.slice(-100));
+    }
+
+    function updateStats() {
+      const total = library.length;
+      const done = library.filter(x => Number(x.attempts) || x.best);
+      const avg = done.length
+        ? Math.round(done.reduce((sum, x) => sum + (Number(x.best) || 0), 0) / done.length)
+        : 0;
+      $("stats").textContent = `📘 ${total} جمله | تمرین‌شده ${done.length} | میانگین ${avg}%`;
+    }
+
+    function updateModeInfo() {
+      const msg = !settings.apiKey
+        ? "💡 برای ساخت جمله‌های جدید، کلید API را در ⚙️ تنظیمات وارد کنید."
+        : "✅ آماده برای تمرین";
+      $("modeInfo").textContent = msg;
+    }
+
+    function showCurrentButtons() {
+      if (!current) return;
+      $("starBtn").textContent = current.star ? "⭐ ستاره‌دار" : "☆ ستاره";
+      $("hardBtn").textContent = current.hard ? "😓 سخت (علامت خورده)" : "😓 سخت بود";
+    }
+
+    function textToSpeech(text, lang = "en-US", rate = 1) {
+      return new Promise((resolve) => {
+        if (!("speechSynthesis" in window) || !text) return resolve();
+        speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.rate = rate;
+        const languagePrefix = lang.slice(0, 2).toLowerCase();
+        const voice = voices.find(v => v.lang && v.lang.replace("_", "-").toLowerCase() === lang.toLowerCase())
+          || voices.find(v => v.lang && v.lang.toLowerCase().startsWith(languagePrefix));
+        if (voice) utterance.voice = voice;
+        utterance.onend = resolve;
+        utterance.onerror = resolve;
+        speechSynthesis.speak(utterance);
+      });
+    }
+
+    function loadVoices() {
+      if ("speechSynthesis" in window) {
+        voices = speechSynthesis.getVoices();
+      }
+    }
+
+    if ("speechSynthesis" in window) {
+      loadVoices();
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function loadSpeechRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      return SR || null;
+    }
+
+    function listen(lang, onInterim) {
+      return new Promise((resolve, reject) => {
+        const SR = loadSpeechRecognition();
+        if (!SR) return reject("مرورگر شما تشخیص گفتار را پشتیبانی نمی‌کند. از Chrome استفاده کنید.");
+        speechSynthesis.cancel();
+        const r = new SR();
+        r.lang = lang;
+        r.interimResults = true;
+        r.maxAlternatives = 1;
+        let finalText = "";
+
+        r.onresult = (event) => {
+          let interim = "";
+          for (let i = 0; i < event.results.length; i++) {
+            interim += event.results[i][0].transcript;
+          }
+          finalText = interim.trim();
+          if (typeof onInterim === "function") onInterim(finalText);
+        };
+
+        r.onerror = (e) => {
+          const msg = e.error === "no-speech" ? "صدایی شنیده نشد." :
+            e.error === "not-allowed" ? "اجازه‌ی میکروفون داده نشد." :
+            "خطای تشخیص گفتار: " + String(e.error);
+          reject(msg);
+        };
+
+        r.onend = () => resolve(finalText.trim());
+        try { r.start(); } catch { reject("تشخیص گفتار در حال حاضر آماده نیست، دوباره امتحان کنید."); }
+      });
+    }
+
+    function norm(value) {
+      return (" " + String(value || "").toLowerCase()
+        .replace(/[’‘]/g, "'")
+        .replace(/won't/g, "will not")
+        .replace(/can't/g, "can not")
+        .replace(/cannot/g, "can not")
+        .replace(/n't/g, " not")
+        .replace(/'re/g, " are")
+        .replace(/'m/g, " am")
+        .replace(/'ll/g, " will")
+        .replace(/'ve/g, " have")
+        .replace(/'d/g, " would")
+        .replace(/\b(it|that|what|there|he|she|who|where|how)'s/g, "$1 is")
+        .replace(/[^a-z0-9' ]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() + " ");
+    }
+
+    function wordsOf(value) {
+      return norm(value).trim().split(" ").filter(Boolean);
+    }
+
+    function levenshtein(a, b) {
+      const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+      for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return dp[a.length][b.length];
+    }
+
+    function calcScore(heard, target) {
+      const a = wordsOf(heard);
+      const b = wordsOf(target);
+      if (!b.length) return 0;
+      const distance = levenshtein(a, b);
+      return Math.max(0, Math.round((1 - distance / Math.max(a.length, b.length)) * 100));
+    }
+
+    function bestMatch(heard) {
+      const candidates = [current.en, ...(current.alts || [])];
+      let best = { score: -1, text: current.en };
+      candidates.forEach((txt) => {
+        const score = calcScore(heard, txt);
+        if (score > best.score) best = { score, text: txt };
+      });
+      return best;
+    }
+
+    function evaluate(heard) {
+      if (!current) return;
+      lastHeard = heard.trim();
+      const { score, text } = bestMatch(lastHeard);
+      const heardWords = wordsOf(lastHeard);
+      const pool = [...heardWords];
+
+      const html = text.split(/\\s+/).map((w) => {
+        const token = wordsOf(w)[0];
+        const index = token ? pool.indexOf(token) : -1;
+        if (index > -1) {
+          pool.splice(index, 1);
+          return `<span class=\"ok\">${esc(w)}</span>`;
+        }
+        return `<span class=\"bad\">${esc(w)}</span>`;
+      }).join(" ");
+
+      $("heard").innerHTML = `🎧 <b>${esc(lastHeard)}</b><br><span class=\"small\">مقایسه با: </span>${html}`;
+      const emoji = score >= 90 ? "🌟 عالی!" :
+        score >= 70 ? "👍 خوبه" :
+        score >= 40 ? "🙂 نزدیک بود" : "💪 دوباره تلاش کن";
+      $("scoreBox").innerHTML = `${score}% ${emoji}`;
+      $("scoreBox").style.color = score >= 70 ? "var(--g)" : "var(--r)";
+
+      current.attempts = (current.attempts || 0) + 1;
+      current.best = Math.max(Number(current.best) || 0, score);
+      current.last = score;
+      saveLibrary();
+      updateStats();
+    }
+
+    async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی برای فارسی‌زبان‌ها هستی.", asJson = false) {
+      const apiKey = settings.apiKey?.trim();
+      if (!apiKey) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
+
+      const model = settings.model?.trim() || "gemini-2.0-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const body = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          temperature: 0.8,
+          ...(asJson ? { responseMimeType: "application/json" } : {})
+        }
+      };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error?.message || "خطای ارتباط با Gemini";
+        throw new Error(msg);
+      }
+
+      const text = (data.candidates?.[0]?.content?.parts || [])
+        .map(p => p.text || "")
+        .join("");
+      return text;
+    }
+
+    async function fetchSentences() {
+      const recent = library.slice(-60).map(x => x.en).join(" | ");
+      const topic = settings.topic === "mixed"
+        ? "ترکیبی از همه موضوعات روزمره، سفر، خرید، ورزش، کوهنوردی، فیلم و شبکه‌های اجتماعی"
+        : TOPICS[settings.topic];
+
+      const prompt = `
+${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
+سطح: ${settings.level}
+موضوع: ${topic}
+قوانین:
+- جمله‌ها طبیعی، محاوره‌ای و واقعی باشند.
+- ترجمه کلمه‌به‌کلمه نباشند.
+- تنوع گرامری داشته باشند.
+- این‌ها را تکرار نکن: ${recent || "ندارد"}
+خروجی فقط JSON است، فقط آرایه‌ای مثل:
+[
+  {"fa":"...", "en":"...", "alts":["..."], "note":"...", "words":[{"en":"...", "fa":"...", "pron":"..."}]}
+]
+`;
+
+      const raw = await geminiCall(prompt, "تو معلم حرفه‌ای زبان انگلیسی برای فارسی‌زبانان هستی.", true);
+      const cleaned = raw.replace(/```json|```/gi, "").trim();
+      let arr = [];
+      try {
+        arr = JSON.parse(cleaned);
+      } catch {
+        try {
+          const obj = JSON.parse(cleaned.replace(/[\n\r]/g, ""));
+          arr = obj.sentences || Object.values(obj)[0] || [];
+        } catch {
+          arr = [];
+        }
+      }
+
+      if (!Array.isArray(arr)) arr = [];
+      return arr.filter(x => x && x.fa && x.en).map(x => ({
+        ...x,
+        id: String(Date.now() + Math.random()),
+        topic: settings.topic,
+        level: settings.level,
+        date: new Date().toISOString()
+      }));
+    }
+
+    async function nextSentence() {
+      $("answerBox").classList.add("hidden");
+      $("heard").innerHTML = "";
+      $("scoreBox").innerHTML = "";
+      $("aiCheckBox").innerHTML = "";
+      $("typeInput").value = "";
+
+      if (!queue.length) {
+        if (reviewMode) {
+          reviewMode = false;
+          $("modeInfo").textContent = "✅ مرور تمام شد. حالا جمله‌های جدید دریافت می‌شود.";
+        }
+
+        $("faText").innerHTML = '<div class="loader">⏳ معلم در حال ساختن جمله‌های جدید...</div>';
+        $("nextBtn").disabled = true;
+
+        try {
+          const arr = await fetchSentences();
+          if (arr.length) {
+            library.push(...arr);
+            saveLibrary();
+            queue = [...arr];
+          } else {
+            queue = SAMPLE_SENTENCES.map(item => ({ ...item, id: String(Date.now() + Math.random()) }));
+          }
+        } catch (err) {
+          $("modeInfo").textContent = "⚠️ " + (err && err.message ? err.message : String(err)) + " — از جمله‌های نمونه استفاده می‌شود.";
+          queue = SAMPLE_SENTENCES.map(item => ({ ...item, id: String(Date.now() + Math.random()) }));
+        }
+
+        $("nextBtn").disabled = false;
+      }
+
+      current = queue.shift();
+      showCurrent();
+      updateStats();
+    }
+
+    function showCurrent() {
+      if (!current) return;
+      $("faText").textContent = current.fa || "جمله‌ای وجود ندارد.";
+      $("cardMeta").textContent =
+        `${TOPICS[current.topic] || ""} ${reviewMode ? "• 🔁 مرور (" + queue.length + " باقی‌مانده)" : ""}`.trim();
+      showCurrentButtons();
+      if (settings.autoFa) {
+        textToSpeech(current.fa, "fa-IR", 1);
+      }
+    }
+
+    function showAnswer() {
+      if (!current) return;
+
+      $("answerBox").classList.remove("hidden");
+      $("enText").textContent = current.en || "";
+
+      $("altBox").innerHTML = (current.alts || []).length
+        ? "✅ Also correct:<br>" + current.alts.map(esc).join("<br>")
+        : "";
+
+      $("noteBox").innerHTML = current.note ? "💡 " + esc(current.note) : "";
+      $("wordsBox").innerHTML = (current.words || []).map((w) =>
+        `<div class="word">
+          <div class="textWrap">
+            <span class="ltr"><b>${esc(w.en)}</b></span>
+            <span>${esc(w.fa)} <span class="tiny">(${esc(w.pron || "")})</span></span>
+          </div>
+          <button onclick="speakWord(${JSON.stringify(String(w.en || ""))}, ${settings.rate})">🔊</button>
+        </div>`
+      ).join("");
+
+      if (settings.autoEn) {
+        textToSpeech(current.en, "en-US", settings.rate);
+      }
+    }
+
+    window.speakWord = function (word, rate) {
+      if (!word) return;
+      textToSpeech(word, "en-US", rate);
+    };
+
+    $("nextBtn").onclick = nextSentence;
+    $("showBtn").onclick = showAnswer;
+    $("faSpeakBtn").onclick = () => current && textToSpeech(current.fa, "fa-IR", 1);
+    $("enSpeakBtn").onclick = () => current && textToSpeech(current.en, "en-US", settings.rate);
+    $("enSlowBtn").onclick = () => current && textToSpeech(current.en, "en-US", 0.6);
+
+    $("starBtn").onclick = () => {
+      if (!current) return;
+      current.star = !current.star;
+      saveLibrary();
+      showCurrentButtons();
+    };
+
+    $("hardBtn").onclick = () => {
+      if (!current) return;
+      current.hard = !current.hard;
+      saveLibrary();
+      showCurrentButtons();
+    };
+
+    $("typeBtn").onclick = () => {
+      const value = $("typeInput").value.trim();
+      if (value) evaluate(value);
+    };
+
+    $("micBtn").onclick = async () => {
+      if (!current) return nextSentence();
+
+      if ($("micBtn").classList.contains("rec")) {
+        if (recog && typeof recog.stop === "function") recog.stop();
+        return;
+      }
+
+      $("micBtn").classList.add("rec");
+      $("micBtn").textContent = "🔴 در حال شنیدن...";
+
+      try {
+        const SpeechRecognitionClass = loadSpeechRecognition();
+        if (!SpeechRecognitionClass) {
+          $("heard").textContent = "⚠️ مرورگر شما از تشخیص صدا پشتیبانی نمی‌کند.";
+          return;
+        }
+
+        const result = await listen("en-US", (text) => {
+          $("heard").textContent = "🎧 " + text;
+        });
+        if (result) {
+          evaluate(result);
+        } else {
+          $("heard").textContent = "چیزی شنیده نشد، دوباره امتحان کن.";
+        }
+      } catch (err) {
+        $("heard").textContent = "⚠️ " + (err && err.message ? err.message : String(err));
+      } finally {
+        $("micBtn").classList.remove("rec");
+        $("micBtn").textContent = "🎤 حالا انگلیسی بگو";
+      }
+    };
+
+    $("aiCheckBtn").onclick = async () => {
+      if (!lastHeard && !current) {
+        $("aiCheckBox").textContent = "اول جمله را بگویید یا تایپ کنید.";
+        return;
+      }
+
+      const sentenceText = lastHeard || $("typeInput").value.trim() || "";
+      if (!sentenceText) {
+        $("aiCheckBox").textContent = "اول جمله را بگویید یا تایپ کنید.";
+        return;
+      }
+
+      $("aiCheckBox").textContent = "⏳ ...";
+
+      try {
+        const prompt = `جمله فارسی: «${current.fa}»\nترجمه مرجع: "${current.en}"\nچیزی که زبان‌آموز گفت: "${sentenceText}"\nبه فارسی و کوتاه توضیح بده: آیا جمله درست است؟ اگر اشتباه دارد، دقیق و مودبانه بگو. اگر تشخیص گفتار اشتباه کرده، کدام کلمه احتمالاً درست نیست و تلفظ درستش چیست؟`;
+        const answer = await geminiCall(prompt, "تو معلم مهربان و دقیق زبان انگلیسی هستی.");
+        $("aiCheckBox").textContent = answer;
+      } catch (err) {
+        $("aiCheckBox").textContent = "⚠️ " + (err && err.message ? err.message : String(err));
+      }
+    };
+
+    function filteredLib() {
+      const q = $("searchIn").value.trim().toLowerCase();
+      const filter = $("filterSel").value;
+
+      return library.filter(item => {
+        const matchesQuery = !q || (String(item.fa || "").toLowerCase().includes(q) || String(item.en || "").toLowerCase().includes(q));
+        const matchesFilter =
+          filter === "all" ||
+          (filter === "star" && item.star) ||
+          (filter === "hard" && item.hard) ||
+          (filter === "weak" && Number(item.best) < 70 && Number(item.attempts) > 0);
+
+        return matchesQuery && matchesFilter;
+      }).reverse();
+    }
+
+    function renderLib() {
+      const list = filteredLib();
+      $("libCount").textContent = `${list.length} جمله`;
+
+      $("libList").innerHTML = list.length
+        ? list.slice(0, 300).map(x => `
+          <div class="item">
+            <div>${esc(x.fa)}</div>
+            <div class="en">${esc(x.en)}</div>
+            <div class="small">
+              ${x.star ? "⭐ " : ""}${x.hard ? "😓 " : ""}${x.attempts ? "بهترین امتیاز: " + (x.best || 0) + "%" : "تمرین‌نشده"}
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button onclick="window.playSentence(${JSON.stringify(String(x.en || ""))})">🔊</button>
+              <button onclick="practiceOne(${JSON.stringify(String(x.id || ""))})">🎯 تمرین</button>
+              <button onclick="toggleStar(${JSON.stringify(String(x.id || ""))})">${x.star ? "⭐" : "☆"}</button>
+              <button onclick="deleteItem(${JSON.stringify(String(x.id || ""))})">🗑</button>
+            </div>
+          </div>
+        `).join("")
+        : "<div class=\"small\">موردی پیدا نشد.</div>";
+    }
+
+    window.playSentence = function (sentence) {
+      if (!sentence) return;
+      textToSpeech(sentence, "en-US", settings.rate);
+    };
+
+    window.practiceOne = function (id) {
+      const item = library.find(x => String(x.id) === String(id));
+      if (!item) return;
+      current = item;
+      switchTab("practice");
+      $("answerBox").classList.add("hidden");
+      $("heard").innerHTML = "";
+      $("scoreBox").innerHTML = "";
+      showCurrent();
+    };
+
+    window.toggleStar = function (id) {
+      const item = library.find(x => String(x.id) === String(id));
+      if (!item) return;
+      item.star = !item.star;
+      saveLibrary();
+      renderLib();
+    };
+
+    window.deleteItem = function (id) {
+      if (!confirm("حذف شود؟")) return;
+      library = library.filter(x => String(x.id) !== String(id));
+      saveLibrary();
+      renderLib();
+      updateStats();
+    };
+
+    $("searchIn").oninput = renderLib;
+    $("filterSel").onchange = renderLib;
+
+    $("reviewBtn").onclick = () => {
+      const list = filteredLib().sort(() => Math.random() - 0.5);
+      if (!list.length) return alert("فهرست خالی است.");
+      queue = list;
+      reviewMode = true;
+      $("modeInfo").textContent = `🔁 حالت مرور: ${list.length} جمله`;
+      switchTab("practice");
+      nextSentence();
+    };
+
+    function renderChat() {
+      if (!chatHist.length) {
+        $("chatBox").innerHTML = '<div class="small" style="text-align:center; margin-top:24px;">👋 سلام! هر سؤالی درباره زبان انگلیسی داری بپرس.</div>';
+        return;
+      }
+
+      $("chatBox").innerHTML = chatHist.map((m, i) => `
+        <div class="msg ${m.role === "user" ? "user" : "ai"}">
+          ${esc(m.text)}
+          ${m.role !== "user" ? `<br><button onclick="readChatSentence(${i})">🔊 خواندن انگلیسی</button>` : ""}
+        </div>
+      `).join("");
+
+      $("chatBox").scrollTop = $("chatBox").scrollHeight;
+    }
+
+    window.readChatSentence = function (index) {
+      const msg = chatHist[index];
+      if (!msg || !msg.text) return;
+      const englishBits = (msg.text.match(/[A-Za-z][A-Za-z0-9'’,.?!\- ]{2,}/g) || []).slice(0, 3);
+      const text = englishBits.join(". ");
+      if (text) textToSpeech(text, "en-US", settings.rate);
+    };
+
+    async function sendChat() {
+      const t = $("chatIn").value.trim();
+      if (!t) return;
+
+      $("chatIn").value = "";
+      chatHist.push({ role: "user", text: t });
+      chatHist.push({ role: "model", text: "⏳ ..." });
+      renderChat();
+
+      try {
+        const recent = chatHist.slice(-21, -1).map(m => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.text }]
+        }));
+
+        const teacherPrompt = `
+تو معلم خصوصی زبان انگلیسی برای فارسی‌زبان هستی.
+سطح فعلی کاربر: ${settings.level}
+ساده، کاربردی و کوتاه پاسخ بده.
+برای کلمه‌های مهم معنی، تلفظ با حروف فارسی و مثال کوتاه بده.
+اگر کاربر انگلیسی نوشته، اشتباهاتش را با احترام اصلاح کن.
+`;
+        const reply = await geminiCall(
+          recent.map(m => `${m.role}: ${m.parts[0].text}`).join("\n"),
+          teacherPrompt
+        );
+
+        chatHist[chatHist.length - 1].text = reply;
+      } catch (err) {
+        chatHist[chatHist.length - 1].text = "⚠️ " + (err && err.message ? err.message : String(err));
+      }
+
+      saveChat();
+      renderChat();
+    }
+
+    $("chatSend").onclick = sendChat;
+    $("chatClear").onclick = () => {
+      if (confirm("پاک کردن گفتگو؟")) {
+        chatHist = [];
+        saveChat();
+        renderChat();
+      }
+    };
+
+    async function chatMic(lang) {
+      try {
+        const result = await listen(lang, (text) => {
+          $("chatIn").value = text;
+        });
+        if (result) $("chatIn").value = result;
+      } catch (err) {
+        alert(err && err.message ? err.message : String(err));
+      }
+    }
+
+    $("chatMicFa").onclick = () => chatMic("fa-IR");
+    $("chatMicEn").onclick = () => chatMic("en-US");
+
+    function loadSettingsUI() {
+      $("apiKeyIn").value = settings.apiKey || "";
+      $("modelIn").value = settings.model || "gemini-2.0-flash";
+      $("rateIn").value = String(settings.rate || 0.9);
+      $("rateVal").textContent = String(settings.rate || 0.9);
+      $("batchIn").value = String(settings.batch || 10);
+      $("autoFaIn").checked = !!settings.autoFa;
+      $("autoEnIn").checked = !!settings.autoEn;
+      $("ver").textContent = APP_VERSION;
+    }
+
+    $("rateIn").oninput = () => {
+      const value = Number($("rateIn").value);
+      $("rateVal").textContent = String(value);
+    };
+
+    $("saveSet").onclick = () => {
+      settings = Object.assign({}, settings, {
+        apiKey: $("apiKeyIn").value.trim(),
+        model: $("modelIn").value.trim() || "gemini-2.0-flash",
+        rate: Number($("rateIn").value),
+        batch: Number($("batchIn").value) || 10,
+        autoFa: $("autoFaIn").checked,
+        autoEn: $("autoEnIn").checked
+      });
+      DB.set("settings", settings);
+      updateModeInfo();
+      alert("✅ تنظیمات ذخیره شد");
+    };
+
+    $("exportBtn").onclick = () => {
+      const payload = JSON.stringify({ version: APP_VERSION, library, chat: chatHist }, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "english-backup-" + new Date().toISOString().slice(0,10) + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    $("importBtn").onclick = () => $("importFile").click();
+    $("importFile").onchange = async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const imported = Array.isArray(data.library) ? data.library : [];
+        const existingIds = new Set(library.map(x => String(x.id)));
+        imported.forEach(item => {
+          if (item && item.en && item.fa && !existingIds.has(String(item.id))) {
+            library.push(item);
+            existingIds.add(String(item.id));
+          }
+        });
+        saveLibrary();
+        updateStats();
+        renderLib();
+        alert("✅ بازیابی شد");
+      } catch {
+        alert("فایل نامعتبر است.");
+      }
+    };
+
+    $("testVoice").onclick = async () => {
+      const faCount = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("fa")).length;
+      const enCount = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("en")).length;
+      const micSupport = !!loadSpeechRecognition();
+
+      $("voiceInfo").textContent =
+        `صدای فارسی: ${faCount ? "✅" : "❌"} | صدای انگلیسی: ${enCount ? "✅" : "❌"} | میکروفون: ${micSupport ? "✅" : "❌"}`;
+
+      try {
+        await textToSpeech("سلام، این تست صدای فارسی است", "fa-IR", 1);
+        await textToSpeech("Hello, this is an English voice test.", "en-US", settings.rate);
+      } catch {}
+    };
+
+    function switchTab(tabName) {
+      document.querySelectorAll("section").forEach(section => {
+        section.classList.toggle("active", section.id === "tab-" + tabName);
+      });
+      document.querySelectorAll("nav button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === tabName);
+      });
+
+      if (tabName === "saved") renderLib();
+      if (tabName === "chat") renderChat();
+      if (tabName === "settings") loadSettingsUI();
+    }
+
+    document.querySelectorAll("nav button").forEach(button => {
+      button.onclick = () => switchTab(button.dataset.tab);
+    });
+
+    $("topicSel").innerHTML = Object.entries(TOPICS)
+      .map(([key, label]) => `<option value="${key}">${label}</option>`)
+      .join("");
+
+    $("topicSel").value = settings.topic;
+    $("levelSel").value = settings.level;
+
+    $("topicSel").onchange = () => {
+      settings.topic = $("topicSel").value;
+      DB.set("settings", settings);
+      queue = [];
+      if (!reviewMode) {
+        $("modeInfo").textContent = "✅ موضوع تغییر کرد؛ جمله جدید بعدی ساخته می‌شود.";
+      }
+    };
+
+    $("levelSel").onchange = () => {
+      settings.level = $("levelSel").value;
+      DB.set("settings", settings);
+      queue = [];
+      if (!reviewMode) {
+        $("modeInfo").textContent = "✅ سطح تغییر کرد؛ جمله جدید بعدی ساخته می‌شود.";
+      }
+    };
+
+    updateModeInfo();
+    updateStats();
+    renderChat();
+    loadSettingsUI();
+
+    if (!("speechSynthesis" in window)) {
+      $("voiceInfo").textContent = "در این مرورگر صدای TTS پشتیبانی نمی‌شود. از Chrome استفاده کنید.";
+    }
+  </script>
+</body>
+</html>
