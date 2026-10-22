@@ -244,12 +244,11 @@
         <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
         <div class="small">از aistudio.google.com رایگان دریافت کنید.</div>
 
-        <!-- ✅ تغییر مدل هوش مصنوعی به منوی کشویی -->
+        <!-- ✅ حذف مدل 2.5 -->
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
           <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی)</option>
           <option value="gemini-3.5-flash">gemini-3.5-flash</option>
-          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -286,7 +285,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.1.8";
+    const APP_VERSION = "1.1.9";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -345,7 +344,6 @@
     let timerSeconds = 0;
     let audioCtx = null;
 
-    // ✅ باز کردن قفل صدا برای مرورگر (وقتی کاربر روی دکمه تایمر کلیک می‌کند)
     function unlockAudio() {
       if (!audioCtx) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -356,7 +354,6 @@
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
-      // پخش یک صدای بی‌صدا برای باز کردن قفل مرورگر
       if (audioCtx) {
         try {
           const buffer = audioCtx.createBuffer(1, 1, 22050);
@@ -368,7 +365,6 @@
       }
     }
 
-    // ✅ تابع پخش صدای آلارم ملایم ۱۰ ثانیه‌ای
     function playGentleAlarm() {
       if (!audioCtx) unlockAudio();
       
@@ -809,6 +805,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       textToSpeech(cleanWord || word, "en-US", rate);
     };
 
+    // ✅ بهینه‌سازی: جلوگیری از ترجمه مجدد فارسی توسط هوش مصنوعی
     $("customTranslateBtn").onclick = async () => {
       if ($("customTranslateBtn").classList.contains("rec")) return;
 
@@ -825,17 +822,18 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           throw new Error("چیزی شنیده نشد. لطفا دوباره تلاش کنید.");
         }
 
+        // نمایش متن فارسی شنیده شده در کادر اصلی
+        $("faText").innerHTML = heardPersian;
         $("customTranslateBtn").innerHTML = "⏳ ترجمه...";
-        $("faText").innerHTML = '<div class="loader">⏳ هوش مصنوعی در حال ترجمه جمله شماست...</div>';
-
+        
+        // درخواست فقط برای بخش انگلیسی
         const prompt = `
 کاربر این جمله فارسی را می‌خواهد به انگلیسی تمرین کند:
 "${heardPersian}"
 سطح کاربر: ${settings.level}
 
-یک شیء JSON دقیقاً با این ساختار برگردان:
+یک شیء JSON دقیقاً با این ساختار برگردان (دیگر نیازی به تولید مجدد بخش فارسی نیست):
 {
-  "fa": "${heardPersian}",
   "en": "بهترین ترجمه انگلیسی",
   "alts": ["ترجمه جایگزین ۱", "ترجمه جایگزین ۲"],
   "note": "توضیح کوتاه گرامری یا اصطلاحی به فارسی",
@@ -847,7 +845,9 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const obj = JSON.parse(cleaned);
 
+        // ترکیب متن فارسی شنیده شده با پاسخ هوش مصنوعی
         const newItem = {
+          fa: heardPersian, 
           ...obj,
           id: String(Date.now() + Math.random()),
           topic: "custom",
@@ -1127,9 +1127,8 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
       
-      // ✅ بررسی میکنیم اگر مدل قدیمی در حافظه بود، به مدل جدید تغییر کند
       let currentModel = settings.model || "gemini-3.8-flash";
-      if (!["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash"].includes(currentModel)) {
+      if (!["gemini-3.8-flash", "gemini-3.5-flash"].includes(currentModel)) {
           currentModel = "gemini-3.8-flash";
       }
       $("modelIn").value = currentModel;
