@@ -186,6 +186,9 @@
         <div id="answerBox" class="hidden">
           <hr />
           <div class="en" id="enText"></div>
+          
+          <!-- ✅ بخش مقایسه به داخل باکس نمایش جواب منتقل شد -->
+          <div id="comparisonBox" style="margin-top:10px; padding:10px; background:#fafafa; border-radius:10px; border:1px solid #eee;"></div>
 
           <div class="row">
             <button id="enSpeakBtn">🔊 عادی</button>
@@ -240,11 +243,15 @@
 
     <section id="tab-settings">
       <div class="card">
-        <label>🔑 کلید API Gemini</label>
+        <!-- ✅ کادر کلید API دوم اضافه شد -->
+        <label>🔑 کلید API Gemini (اصلی)</label>
         <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
+        
+        <label>🔑 کلید API Gemini (پشتیبان)</label>
+        <input id="apiKeyIn2" class="ltr" placeholder="AIza... (اختیاری)" />
+        
         <div class="small">از aistudio.google.com رایگان دریافت کنید.</div>
 
-        <!-- ✅ حذف مدل 2.5 -->
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
           <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی)</option>
@@ -285,7 +292,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.1.9";
+    const APP_VERSION = "1.2.0";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -320,6 +327,7 @@
 
     const DEFAULT_SETTINGS = {
       apiKey:"",
+      apiKey2:"", // ✅ کلید پشتیبان
       model:"gemini-3.8-flash",
       level:"A2",
       topic:"daily",
@@ -613,6 +621,8 @@
       return best;
     }
 
+    // ✅ تغییرات در تابع evaluate: فقط امتیاز را نشان می‌دهد و مقایسه را ذخیره می‌کند
+    let lastComparisonHtml = "";
     function evaluate(heard) {
       if (!current) return;
       lastHeard = heard.trim();
@@ -620,7 +630,7 @@
       const heardWords = wordsOf(lastHeard);
       const pool = [...heardWords];
 
-      const html = text.split(/\\s+/).map((w) => {
+      lastComparisonHtml = text.split(/\\s+/).map((w) => {
         const token = wordsOf(w)[0];
         const index = token ? pool.indexOf(token) : -1;
         if (index > -1) {
@@ -630,12 +640,15 @@
         return `<span class=\"bad\">${esc(w)}</span>`;
       }).join(" ");
 
-      $("heard").innerHTML = `🎧 <b>${esc(lastHeard)}</b><br><span class=\"small\">مقایسه با: </span>${html}`;
+      $("heard").innerHTML = `🎧 <b>${esc(lastHeard)}</b>`;
       const emoji = score >= 90 ? "🌟 عالی!" :
         score >= 70 ? "👍 خوبه" :
         score >= 40 ? "🙂 نزدیک بود" : "💪 دوباره تلاش کن";
       $("scoreBox").innerHTML = `${score}% ${emoji}`;
       $("scoreBox").style.color = score >= 70 ? "var(--g)" : "var(--r)";
+
+      // پنهان کردن مقایسه تا زمانی که روی نمایش جواب کلیک شود
+      $("comparisonBox").innerHTML = "";
 
       current.attempts = (current.attempts || 0) + 1;
       current.best = Math.max(Number(current.best) || 0, score);
@@ -644,38 +657,54 @@
       updateStats();
     }
 
+    // ✅ تابع ارسال به هوش مصنوعی با قابلیت استفاده از کلید پشتیبان
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی برای فارسی‌زبان‌ها هستی.", asJson = false) {
-      const apiKey = settings.apiKey?.trim();
-      if (!apiKey) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
+      const keys = [settings.apiKey, settings.apiKey2].filter(k => k && k.trim() !== "");
+      
+      if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
       const model = settings.model?.trim() || "gemini-3.8-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-      const body = {
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.8,
-          ...(asJson ? { responseMimeType: "application/json" } : {})
+      let lastErrorMsg = "";
+
+      for (let i = 0; i < keys.length; i++) {
+        try {
+          const body = {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: {
+              temperature: 0.8,
+              ...(asJson ? { responseMimeType: "application/json" } : {})
+            }
+          };
+
+          const res = await fetch(url + `?key=${keys[i]}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          });
+
+          const data = await res.json().catch(() => ({}));
+          
+          if (!res.ok) {
+            lastErrorMsg = data?.error?.message || "خطای ارتباط با Gemini";
+            // اگر خطا مربوط به کلید یا سهمیه بود، حلقه ادامه پیدا می‌کند تا کلید دوم امتحان شود
+            continue; 
+          }
+
+          const text = (data.candidates?.[0]?.content?.parts || [])
+            .map(p => p.text || "")
+            .join("");
+          return text; // اگر موفق بود، نتیجه را برمی‌گرداند
+
+        } catch (e) {
+          lastErrorMsg = e.message || "خطای شبکه";
         }
-      };
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error?.message || "خطای ارتباط با Gemini (Failed to fetch)";
-        throw new Error(msg);
       }
 
-      const text = (data.candidates?.[0]?.content?.parts || [])
-        .map(p => p.text || "")
-        .join("");
-      return text;
+      // اگر هر دو کلید خطا دادند
+      throw new Error(lastErrorMsg + " (هر دو کلید بررسی شدند)");
     }
 
     async function fetchSentences() {
@@ -772,11 +801,18 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       }
     }
 
+    // ✅ تغییرات در نمایش جواب: مقایسه کلمات به اینجا منتقل شد
     function showAnswer() {
       if (!current) return;
 
       $("answerBox").classList.remove("hidden");
       $("enText").textContent = current.en || "";
+
+      if (lastComparisonHtml) {
+        $("comparisonBox").innerHTML = `<span class="small">مقایسه با:</span> <br><div style="direction:ltr; text-align:left; font-family:Arial; margin-top:5px;">${lastComparisonHtml}</div>`;
+      } else {
+        $("comparisonBox").innerHTML = "";
+      }
 
       $("altBox").innerHTML = (current.alts || []).length
         ? "✅ Also correct:<br>" + current.alts.map(esc).join("<br>")
@@ -805,29 +841,39 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       textToSpeech(cleanWord || word, "en-US", rate);
     };
 
-    // ✅ بهینه‌سازی: جلوگیری از ترجمه مجدد فارسی توسط هوش مصنوعی
+    // ✅ تغییرات در دکمه جمله دلخواه: قابلیت انتخاب بین میکروفون و تایپ
     $("customTranslateBtn").onclick = async () => {
       if ($("customTranslateBtn").classList.contains("rec")) return;
 
+      const inputMode = prompt("برای گفتن جمله عدد 1 و برای تایپ کردن عدد 2 را وارد کنید:", "1");
+      if (!inputMode) return;
+
+      let heardPersian = "";
+
       const originalText = $("customTranslateBtn").innerHTML;
       $("customTranslateBtn").classList.add("rec");
-      $("customTranslateBtn").innerHTML = "🔴 بگویید...";
 
       try {
-        const heardPersian = await listen("fa-IR", (text) => {
-          $("faText").innerHTML = `<span class="small" style="color:#666">شنیده شد: ${text}</span>`;
-        });
-
-        if (!heardPersian) {
-          throw new Error("چیزی شنیده نشد. لطفا دوباره تلاش کنید.");
+        if (inputMode.trim() === "2") {
+          $("customTranslateBtn").innerHTML = "⌨️ تایپ...";
+          heardPersian = prompt("جمله فارسی خود را وارد کنید:");
+          if (!heardPersian || !heardPersian.trim()) {
+            throw new Error("متنی وارد نکردید.");
+          }
+        } else {
+          $("customTranslateBtn").innerHTML = "🔴 بگویید...";
+          heardPersian = await listen("fa-IR", (text) => {
+            $("faText").innerHTML = `<span class="small" style="color:#666">شنیده شد: ${text}</span>`;
+          });
+          if (!heardPersian) {
+            throw new Error("چیزی شنیده نشد. لطفا دوباره تلاش کنید.");
+          }
         }
 
-        // نمایش متن فارسی شنیده شده در کادر اصلی
         $("faText").innerHTML = heardPersian;
         $("customTranslateBtn").innerHTML = "⏳ ترجمه...";
         
-        // درخواست فقط برای بخش انگلیسی
-        const prompt = `
+        const promptText = `
 کاربر این جمله فارسی را می‌خواهد به انگلیسی تمرین کند:
 "${heardPersian}"
 سطح کاربر: ${settings.level}
@@ -841,11 +887,10 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 }
 فقط JSON برگردان، هیچ متن اضافی ننویس.
 `;
-        const raw = await geminiCall(prompt, "تو یک مترجم و معلم حرفه‌ای زبان انگلیسی هستی.", true);
+        const raw = await geminiCall(promptText, "تو یک مترجم و معلم حرفه‌ای زبان انگلیسی هستی.", true);
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const obj = JSON.parse(cleaned);
 
-        // ترکیب متن فارسی شنیده شده با پاسخ هوش مصنوعی
         const newItem = {
           fa: heardPersian, 
           ...obj,
@@ -1126,6 +1171,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
+      $("apiKeyIn2").value = settings.apiKey2 || "";
       
       let currentModel = settings.model || "gemini-3.8-flash";
       if (!["gemini-3.8-flash", "gemini-3.5-flash"].includes(currentModel)) {
@@ -1149,6 +1195,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("saveSet").onclick = () => {
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
+        apiKey2: $("apiKeyIn2").value.trim(),
         model: $("modelIn").value,
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
