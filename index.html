@@ -252,7 +252,6 @@
 
     <section id="tab-settings">
       <div class="card">
-        <!-- ✅ نمایش برجسته نسخه در بالای تنظیمات -->
         <div class="version-badge">✅ نسخه نصب شده: <span id="verTop">...</span></div>
 
         <label>🔑 کلید API Gemini (اصلی)</label>
@@ -265,8 +264,8 @@
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی)</option>
-          <option value="gemini-2.5-flash">gemini-2.5-flash (جایگزین)</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash (پیشنهادی و پایدار)</option>
+          <option value="gemini-1.5-flash">gemini-1.5-flash (جایگزین)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -302,7 +301,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.4";
+    const APP_VERSION = "1.2.5";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -338,7 +337,7 @@
     const DEFAULT_SETTINGS = {
       apiKey:"",
       apiKey2:"",
-      model:"gemini-3.8-flash",
+      model:"gemini-2.5-flash",
       level:"A2",
       topic:"daily",
       rate:0.9,
@@ -637,14 +636,14 @@
       const heardWords = wordsOf(lastHeard);
       const pool = [...heardWords];
 
-      lastComparisonHtml = text.split(/\\s+/).map((w) => {
+      lastComparisonHtml = text.split(/\s+/).map((w) => {
         const token = wordsOf(w)[0];
         const index = token ? pool.indexOf(token) : -1;
         if (index > -1) {
           pool.splice(index, 1);
-          return `<span class=\"ok\">${esc(w)}</span>`;
+          return `<span class="ok">${esc(w)}</span>`;
         }
-        return `<span class=\"bad\">${esc(w)}</span>`;
+        return `<span class="bad">${esc(w)}</span>`;
       }).join(" ");
 
       $("heard").innerHTML = `🎧 <b>${esc(lastHeard)}</b>`;
@@ -668,8 +667,8 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      const primaryModel = settings.model?.trim() || "gemini-3.8-flash";
-      const fallbackModel = "gemini-2.5-flash";
+      const primaryModel = settings.model?.trim() || "gemini-2.5-flash";
+      const fallbackModel = "gemini-1.5-flash";
       
       const urlPrimary = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent`;
       const urlFallback = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
@@ -695,8 +694,7 @@
 
           let data = await res.json().catch(() => ({}));
 
-          if (!res.ok && data?.error?.status === 'UNAVAILABLE') {
-            console.log(`مدل ${primaryModel} شلوغ است، تلاش با ${fallbackModel}...`);
+          if (!res.ok && (data?.error?.status === 'UNAVAILABLE' || res.status === 404 || res.status === 400)) {
             res = await fetch(urlFallback + `?key=${keys[i]}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -873,7 +871,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
       const originalText = $("customTranslateBtn").innerHTML;
       let inputSentence = "";
-      let isVoice = false;
 
       try {
         const inputMode = prompt("برای گفتن جمله عدد 1 و برای تایپ کردن عدد 2 را وارد کنید:", "1");
@@ -884,7 +881,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           inputSentence = prompt("جمله (فارسی یا انگلیسی) خود را وارد کنید:");
           if (!inputSentence || !inputSentence.trim()) throw new Error("متنی وارد نکردید.");
         } else {
-          isVoice = true;
           $("customTranslateBtn").classList.add("rec");
           $("customTranslateBtn").innerHTML = "🔴 بگویید...";
           
@@ -1207,9 +1203,9 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
       
-      let currentModel = settings.model || "gemini-3.8-flash";
-      if (!["gemini-3.8-flash", "gemini-2.5-flash"].includes(currentModel)) {
-          currentModel = "gemini-3.8-flash";
+      let currentModel = settings.model || "gemini-2.5-flash";
+      if (!["gemini-2.5-flash", "gemini-1.5-flash"].includes(currentModel)) {
+          currentModel = "gemini-2.5-flash";
       }
       $("modelIn").value = currentModel;
       
@@ -1219,7 +1215,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       $("autoFaIn").checked = !!settings.autoFa;
       $("autoEnIn").checked = !!settings.autoEn;
       
-      // ✅ نمایش نسخه در دو نقطه (بالا و پایین)
       $("verTop").textContent = APP_VERSION;
     }
 
@@ -1231,7 +1226,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("saveSet").onclick = () => {
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
-        apiKey2: $("apiKeyIn2").value.trim(), // اصلاح باگ تایپی
+        apiKey2: $("apiKeyIn2").value.trim(),
         model: $("modelIn").value,
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
@@ -1265,7 +1260,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         const imported = Array.isArray(data.library) ? data.library : [];
         const existingIds = new Set(library.map(x => String(x.id)));
         imported.forEach(item => {
-          if (item && item.en && item.fa && !existingIds.has(String(item.id))) {
+          if (item && item.en && item.fa && !existingIds.has(String(item.id)))	{
             library.push(item);
             existingIds.add(String(item.id));
           }
@@ -1327,7 +1322,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     };
 
     $("levelSel").onchange = () => {
-      settings.level = $("levelSel").value;
+      settings.level = $("levelSel".value);
       DB.set("settings", settings);
       queue = [];
       if (!reviewMode) {
