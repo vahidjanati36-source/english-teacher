@@ -249,14 +249,10 @@
         
         <div class="small">از aistudio.google.com رایگان دریافت کنید.</div>
 
-        <!-- ✅ مدل‌های پایدارتر و جدید به لیست اضافه شدند -->
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-1.5-flash">gemini-1.5-flash (پایدارترین)</option>
-          <option value="gemini-1.5-pro">gemini-1.5-pro (دقیق‌تر)</option>
-          <option value="gemini-2.0-flash">gemini-2.0-flash (سریع)</option>
-          <option value="gemini-3.8-flash">gemini-3.8-flash (جدید)</option>
-          <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی)</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash (جایگزین)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -293,7 +289,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.2";
+    const APP_VERSION = "1.2.3";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -329,7 +325,7 @@
     const DEFAULT_SETTINGS = {
       apiKey:"",
       apiKey2:"",
-      model:"gemini-1.5-flash", // پیش‌فرض روی پایدارترین مدل تنظیم شد
+      model:"gemini-3.8-flash",
       level:"A2",
       topic:"daily",
       rate:0.9,
@@ -348,7 +344,6 @@
     let voices = [];
     let recog = null;
 
-    // --- TIMER & ALARM VARIABLES ---
     let timerInterval = null;
     let timerSeconds = 0;
     let audioCtx = null;
@@ -453,7 +448,6 @@
         }
       }
     };
-    // -----------------------
 
     const SAMPLE_SENTENCES = [
       {fa:"ساعت چند راه می‌افتیم؟", en:"What time are we leaving?", alts:["When are we setting off?"], note:"برای برنامه‌های قطعی آینده از حال استمراری استفاده می‌شود.", words:[{en:"leave",fa:"ترک کردن، راه افتادن",pron:"لیو"}], topic:"hiking"},
@@ -661,8 +655,11 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      const model = settings.model?.trim() || "gemini-1.5-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      const primaryModel = settings.model?.trim() || "gemini-3.8-flash";
+      const fallbackModel = "gemini-2.5-flash";
+      
+      const urlPrimary = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent`;
+      const urlFallback = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
 
       let lastErrorMsg = "";
 
@@ -677,13 +674,25 @@
             }
           };
 
-          const res = await fetch(url + `?key=${keys[i]}`, {
+          // تلاش با مدل اصلی
+          let res = await fetch(urlPrimary + `?key=${keys[i]}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
           });
 
-          const data = await res.json().catch(() => ({}));
+          let data = await res.json().catch(() => ({}));
+
+          // اگر خطای شلوغی بود، به مدل جایگزین سوییچ کن
+          if (!res.ok && data?.error?.status === 'UNAVAILABLE') {
+            console.log(`مدل ${primaryModel} شلوغ است، تلاش با ${fallbackModel}...`);
+            res = await fetch(urlFallback + `?key=${keys[i]}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+            data = await res.json().catch(() => ({}));
+          }
           
           if (!res.ok) {
             lastErrorMsg = data?.error?.message || "خطای ارتباط با Gemini";
@@ -1187,9 +1196,9 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
       
-      let currentModel = settings.model || "gemini-1.5-flash";
-      if (!["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-3.5-flash"].includes(currentModel)) {
-          currentModel = "gemini-1.5-flash";
+      let currentModel = settings.model || "gemini-3.8-flash";
+      if (!["gemini-3.8-flash", "gemini-2.5-flash"].includes(currentModel)) {
+          currentModel = "gemini-3.8-flash";
       }
       $("modelIn").value = currentModel;
       
@@ -1209,7 +1218,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("saveSet").onclick = () => {
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
-        apiKey2: $("apiKeyIn2").value.trim(),
+        apiKey2: $("apiKey2In").value.trim(),
         model: $("modelIn").value,
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
