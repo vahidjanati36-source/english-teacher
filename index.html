@@ -6,7 +6,6 @@
   <meta name="theme-color" content="#2e7d32" />
   <meta name="mobile-web-app-capable" content="yes" />
   
-  <!-- ✅ لوگوی اختصاصی برنامه (معلم زن) -->
   <link rel="icon" type="image/png" href="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f469-200d-1f3eb.png">
   <link rel="apple-touch-icon" href="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f469-200d-1f3eb.png">
 
@@ -187,7 +186,6 @@
           <hr />
           <div class="en" id="enText"></div>
           
-          <!-- ✅ بخش مقایسه به داخل باکس نمایش جواب منتقل شد -->
           <div id="comparisonBox" style="margin-top:10px; padding:10px; background:#fafafa; border-radius:10px; border:1px solid #eee;"></div>
 
           <div class="row">
@@ -243,7 +241,6 @@
 
     <section id="tab-settings">
       <div class="card">
-        <!-- ✅ کادر کلید API دوم اضافه شد -->
         <label>🔑 کلید API Gemini (اصلی)</label>
         <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
         
@@ -292,7 +289,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.0";
+    const APP_VERSION = "1.2.1";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -327,7 +324,7 @@
 
     const DEFAULT_SETTINGS = {
       apiKey:"",
-      apiKey2:"", // ✅ کلید پشتیبان
+      apiKey2:"",
       model:"gemini-3.8-flash",
       level:"A2",
       topic:"daily",
@@ -621,7 +618,6 @@
       return best;
     }
 
-    // ✅ تغییرات در تابع evaluate: فقط امتیاز را نشان می‌دهد و مقایسه را ذخیره می‌کند
     let lastComparisonHtml = "";
     function evaluate(heard) {
       if (!current) return;
@@ -647,7 +643,6 @@
       $("scoreBox").innerHTML = `${score}% ${emoji}`;
       $("scoreBox").style.color = score >= 70 ? "var(--g)" : "var(--r)";
 
-      // پنهان کردن مقایسه تا زمانی که روی نمایش جواب کلیک شود
       $("comparisonBox").innerHTML = "";
 
       current.attempts = (current.attempts || 0) + 1;
@@ -657,7 +652,6 @@
       updateStats();
     }
 
-    // ✅ تابع ارسال به هوش مصنوعی با قابلیت استفاده از کلید پشتیبان
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی برای فارسی‌زبان‌ها هستی.", asJson = false) {
       const keys = [settings.apiKey, settings.apiKey2].filter(k => k && k.trim() !== "");
       
@@ -689,21 +683,19 @@
           
           if (!res.ok) {
             lastErrorMsg = data?.error?.message || "خطای ارتباط با Gemini";
-            // اگر خطا مربوط به کلید یا سهمیه بود، حلقه ادامه پیدا می‌کند تا کلید دوم امتحان شود
             continue; 
           }
 
           const text = (data.candidates?.[0]?.content?.parts || [])
             .map(p => p.text || "")
             .join("");
-          return text; // اگر موفق بود، نتیجه را برمی‌گرداند
+          return text; 
 
         } catch (e) {
           lastErrorMsg = e.message || "خطای شبکه";
         }
       }
 
-      // اگر هر دو کلید خطا دادند
       throw new Error(lastErrorMsg + " (هر دو کلید بررسی شدند)");
     }
 
@@ -792,21 +784,38 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     function showCurrent() {
       if (!current) return;
-      $("faText").textContent = current.fa || "جمله‌ای وجود ندارد.";
+
+      // مدیریت نمایش برای جملات دلخواه انگلیسی
+      if (current.customLang === 'en') {
+        $("faText").textContent = current.en;
+        $("faText").className = "en";
+        if (settings.autoFa) textToSpeech(current.en, "en-US", settings.rate);
+      } else {
+        $("faText").textContent = current.fa || "جمله‌ای وجود ندارد.";
+        $("faText").className = "fa";
+        if (settings.autoFa) textToSpeech(current.fa, "fa-IR", 1);
+      }
+
       $("cardMeta").textContent =
         `${TOPICS[current.topic] || ""} ${reviewMode ? "• 🔁 مرور (" + queue.length + " باقی‌مانده)" : ""}`.trim();
       showCurrentButtons();
-      if (settings.autoFa) {
-        textToSpeech(current.fa, "fa-IR", 1);
-      }
     }
 
-    // ✅ تغییرات در نمایش جواب: مقایسه کلمات به اینجا منتقل شد
     function showAnswer() {
       if (!current) return;
 
       $("answerBox").classList.remove("hidden");
-      $("enText").textContent = current.en || "";
+
+      // اگر ورودی انگلیسی بوده، جواب (ترجمه) فارسی است
+      if (current.customLang === 'en') {
+        $("enText").textContent = current.fa;
+        $("enText").className = "fa";
+        if (settings.autoEn) textToSpeech(current.fa, "fa-IR", 1);
+      } else {
+        $("enText").textContent = current.en || "";
+        $("enText").className = "en";
+        if (settings.autoEn) textToSpeech(current.en, "en-US", settings.rate);
+      }
 
       if (lastComparisonHtml) {
         $("comparisonBox").innerHTML = `<span class="small">مقایسه با:</span> <br><div style="direction:ltr; text-align:left; font-family:Arial; margin-top:5px;">${lastComparisonHtml}</div>`;
@@ -829,10 +838,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           <button onclick="speakWord(this.dataset.word, ${settings.rate})" data-word="${esc(w.en)}">🔊</button>
         </div>`
       ).join("");
-
-      if (settings.autoEn) {
-        textToSpeech(current.en, "en-US", settings.rate);
-      }
     }
 
     window.speakWord = function (word, rate) {
@@ -841,59 +846,69 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       textToSpeech(cleanWord || word, "en-US", rate);
     };
 
-    // ✅ تغییرات در دکمه جمله دلخواه: قابلیت انتخاب بین میکروفون و تایپ
+    // ✅ اصلاح روند دکمه جمله دلخواه
     $("customTranslateBtn").onclick = async () => {
       if ($("customTranslateBtn").classList.contains("rec")) return;
 
-      const inputMode = prompt("برای گفتن جمله عدد 1 و برای تایپ کردن عدد 2 را وارد کنید:", "1");
-      if (!inputMode) return;
-
-      let heardPersian = "";
-
       const originalText = $("customTranslateBtn").innerHTML;
-      $("customTranslateBtn").classList.add("rec");
+      let inputSentence = "";
+      let isVoice = false;
 
       try {
+        const inputMode = prompt("برای گفتن جمله عدد 1 و برای تایپ کردن عدد 2 را وارد کنید:", "1");
+        if (!inputMode) return;
+
         if (inputMode.trim() === "2") {
-          $("customTranslateBtn").innerHTML = "⌨️ تایپ...";
-          heardPersian = prompt("جمله فارسی خود را وارد کنید:");
-          if (!heardPersian || !heardPersian.trim()) {
-            throw new Error("متنی وارد نکردید.");
-          }
+          $("customTranslateBtn").innerHTML = "⌨️ در حال پردازش...";
+          inputSentence = prompt("جمله (فارسی یا انگلیسی) خود را وارد کنید:");
+          if (!inputSentence || !inputSentence.trim()) throw new Error("متنی وارد نکردید.");
         } else {
+          isVoice = true;
+          $("customTranslateBtn").classList.add("rec"); // قرمز میشود فقط هنگام ضبط
           $("customTranslateBtn").innerHTML = "🔴 بگویید...";
-          heardPersian = await listen("fa-IR", (text) => {
+          
+          inputSentence = await listen("fa-IR", (text) => {
             $("faText").innerHTML = `<span class="small" style="color:#666">شنیده شد: ${text}</span>`;
           });
-          if (!heardPersian) {
-            throw new Error("چیزی شنیده نشد. لطفا دوباره تلاش کنید.");
-          }
+          if (!inputSentence) throw new Error("چیزی شنیده نشد.");
+          
+          $("customTranslateBtn").classList.remove("rec"); // برداشتن رنگ قرمز
         }
 
-        $("faText").innerHTML = heardPersian;
-        $("customTranslateBtn").innerHTML = "⏳ ترجمه...";
-        
+        $("customTranslateBtn").innerHTML = "⏳ آماده‌سازی...";
+        $("faText").innerHTML = `<div class="loader">⏳ در حال تنظیم جمله شما...</div>`;
+
+        // تشخیص خودکار زبان ورودی
+        const isPersian = /[\u0600-\u06FF]/.test(inputSentence);
+
         const promptText = `
-کاربر این جمله فارسی را می‌خواهد به انگلیسی تمرین کند:
-"${heardPersian}"
+متن ورودی کاربر: "${inputSentence}"
+اگر این متن انگلیسی است، یک ترجمه فارسی روان برای آن بنویس.
+اگر این متن فارسی است، بهترین ترجمه انگلیسی محاوره‌ای را برای آن بنویس.
 سطح کاربر: ${settings.level}
 
-یک شیء JSON دقیقاً با این ساختار برگردان (دیگر نیازی به تولید مجدد بخش فارسی نیست):
+خروجی فقط یک شیء JSON دقیقاً با این ساختار باشد:
 {
-  "en": "بهترین ترجمه انگلیسی",
-  "alts": ["ترجمه جایگزین ۱", "ترجمه جایگزین ۲"],
+  "fa": "ترجمه فارسی",
+  "en": "ترجمه انگلیسی",
+  "alts": ["جمله جایگزین انگلیسی ۱", "جمله جایگزین انگلیسی ۲"],
   "note": "توضیح کوتاه گرامری یا اصطلاحی به فارسی",
   "words": [{"en":"کلمه مهم", "fa":"معنی", "pron":"تلفظ"}]
 }
-فقط JSON برگردان، هیچ متن اضافی ننویس.
+فقط JSON برگردان.
 `;
-        const raw = await geminiCall(promptText, "تو یک مترجم و معلم حرفه‌ای زبان انگلیسی هستی.", true);
+        const raw = await geminiCall(promptText, "تو یک مترجم و معلم حرفه‌ای زبان هستی.", true);
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const obj = JSON.parse(cleaned);
 
+        // ذخیره زبان اصلی برای نمایش صحیح در کارت
         const newItem = {
-          fa: heardPersian, 
-          ...obj,
+          fa: isPersian ? inputSentence : obj.fa,
+          en: isPersian ? obj.en : inputSentence,
+          alts: obj.alts || [],
+          note: obj.note || "",
+          words: obj.words || [],
+          customLang: isPersian ? 'fa' : 'en',
           id: String(Date.now() + Math.random()),
           topic: "custom",
           level: settings.level,
@@ -910,7 +925,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         $("aiCheckBox").innerHTML = "";
         $("typeInput").value = "";
         showCurrent();
-        $("modeInfo").textContent = "✅ جمله اختصاصی شما آماده شد! حالا انگلیسی بگویید.";
+        $("modeInfo").textContent = "✅ جمله اختصاصی شما آماده شد! حالا پاسخ خود را بگویید.";
         updateStats();
 
       } catch (err) {
