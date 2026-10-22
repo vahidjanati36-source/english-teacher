@@ -264,8 +264,7 @@
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی و جدید)</option>
-          <option value="gemini-2.5-flash">gemini-2.5-flash (پشتیبان)</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash (اصلی و جدید)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -287,7 +286,7 @@
           <button id="importBtn">بازیابی</button>
           <input type="file" id="importFile" accept=".json" class="hidden" />
         </div>
-        <button id="testVoice" style="width:100%;margin-top:10px">🔈 تست صداها</button>
+        <button id="testVoice" style="width:100%_margin-top:10px">🔈 تست صداها</button>
         <div id="voiceInfo" class="small" style="margin-top:8px"></div>
       </div>
     </section>
@@ -301,7 +300,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.7";
+    const APP_VERSION = "1.2.8";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -347,6 +346,9 @@
     };
 
     let settings = Object.assign({}, DEFAULT_SETTINGS, DB.get("settings", {}));
+    // اجبار به استفاده از مدل جدید حتی اگر در حافظه مرورگر مدل قدیمی ذخیره شده باشد
+    settings.model = "gemini-3.8-flash";
+    
     let library = DB.get("library", []);
     let chatHist = DB.get("chat", []);
     let queue = [];
@@ -667,11 +669,9 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      const primaryModel = settings.model?.trim() || "gemini-3.8-flash";
-      const fallbackModel = "gemini-2.5-flash";
-      
-      const urlPrimary = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent`;
-      const urlFallback = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
+      // اجبار به استفاده از مدل جدید و بدون خطای 3.8
+      const modelName = "gemini-3.8-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
       let lastErrorMsg = "";
 
@@ -686,23 +686,13 @@
             }
           };
 
-          let res = await fetch(urlPrimary + `?key=${keys[i]}`, {
+          const res = await fetch(url + `?key=${keys[i]}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
           });
 
-          let data = await res.json().catch(() => ({}));
-
-          // اگر مدل اصلی خطا داد، خودکار مدل پشتیبان را امتحان کن
-          if (!res.ok) {
-            res = await fetch(urlFallback + `?key=${keys[i]}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body)
-            });
-            data = await res.json().catch(() => ({}));
-          }
+          const data = await res.json().catch(() => ({}));
           
           if (!res.ok) {
             lastErrorMsg = data?.error?.message || `خطای ارتباط با سرور (${res.status})`;
@@ -1203,13 +1193,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
-      
-      let currentModel = settings.model || "gemini-3.8-flash";
-      if (!["gemini-3.8-flash", "gemini-2.5-flash"].includes(currentModel)) {
-          currentModel = "gemini-3.8-flash";
-      }
-      $("modelIn").value = currentModel;
-      
+      $("modelIn").value = "gemini-3.8-flash";
       $("rateIn").value = String(settings.rate || 0.9);
       $("rateVal").textContent = String(settings.rate || 0.9);
       $("batchIn").value = String(settings.batch || 10);
@@ -1227,7 +1211,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
         apiKey2: $("apiKeyIn2").value.trim(),
-        model: $("modelIn").value,
+        model: "gemini-3.8-flash",
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
         autoFa: $("autoFaIn").checked,
@@ -1240,7 +1224,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     $("exportBtn").onclick = () => {
       const payload = JSON.stringify({ version: APP_VERSION, library, chat: chatHist }, null, 2);
-      const blob = new Blob([payload], { type: "application/json" });
+      const blob = new Blob([payload], { type: "application/json" }, { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
