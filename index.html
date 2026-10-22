@@ -264,8 +264,7 @@
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-2.5-flash">gemini-2.5-flash (پیشنهادی و پایدار)</option>
-          <option value="gemini-1.5-flash">gemini-1.5-flash (جایگزین)</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash (پیشنهادی)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -301,7 +300,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.5";
+    const APP_VERSION = "1.2.6";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -667,11 +666,9 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      const primaryModel = settings.model?.trim() || "gemini-2.5-flash";
-      const fallbackModel = "gemini-1.5-flash";
-      
-      const urlPrimary = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent`;
-      const urlFallback = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
+      // استفاده از مدل استاندارد و به‌روز فلاش
+      const modelName = "gemini-2.5-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
       let lastErrorMsg = "";
 
@@ -686,25 +683,16 @@
             }
           };
 
-          let res = await fetch(urlPrimary + `?key=${keys[i]}`, {
+          const res = await fetch(url + `?key=${keys[i]}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
           });
 
-          let data = await res.json().catch(() => ({}));
-
-          if (!res.ok && (data?.error?.status === 'UNAVAILABLE' || res.status === 404 || res.status === 400)) {
-            res = await fetch(urlFallback + `?key=${keys[i]}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body)
-            });
-            data = await res.json().catch(() => ({}));
-          }
+          const data = await res.json().catch(() => ({}));
           
           if (!res.ok) {
-            lastErrorMsg = data?.error?.message || "خطای ارتباط با Gemini";
+            lastErrorMsg = data?.error?.message || `خطای ارتباط با سرور (${res.status})`;
             continue; 
           }
 
@@ -1202,19 +1190,12 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
-      
-      let currentModel = settings.model || "gemini-2.5-flash";
-      if (!["gemini-2.5-flash", "gemini-1.5-flash"].includes(currentModel)) {
-          currentModel = "gemini-2.5-flash";
-      }
-      $("modelIn").value = currentModel;
-      
+      $("modelIn").value = "gemini-2.5-flash";
       $("rateIn").value = String(settings.rate || 0.9);
       $("rateVal").textContent = String(settings.rate || 0.9);
       $("batchIn").value = String(settings.batch || 10);
       $("autoFaIn").checked = !!settings.autoFa;
       $("autoEnIn").checked = !!settings.autoEn;
-      
       $("verTop").textContent = APP_VERSION;
     }
 
@@ -1227,7 +1208,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
         apiKey2: $("apiKeyIn2").value.trim(),
-        model: $("modelIn").value,
+        model: "gemini-2.5-flash",
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
         autoFa: $("autoFaIn").checked,
@@ -1260,7 +1241,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         const imported = Array.isArray(data.library) ? data.library : [];
         const existingIds = new Set(library.map(x => String(x.id)));
         imported.forEach(item => {
-          if (item && item.en && item.fa && !existingIds.has(String(item.id)))	{
+          if (item && item.en && item.fa && !existingIds.has(String(item.id))) {
             library.push(item);
             existingIds.add(String(item.id));
           }
@@ -1322,7 +1303,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     };
 
     $("levelSel").onchange = () => {
-      settings.level = $("levelSel".value);
+      settings.level = $("levelSel").value;
       DB.set("settings", settings);
       queue = [];
       if (!reviewMode) {
