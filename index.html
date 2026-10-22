@@ -264,7 +264,8 @@
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-2.5-flash">gemini-2.5-flash (پیشنهادی)</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی و جدید)</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash (پشتیبان)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -300,7 +301,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.6";
+    const APP_VERSION = "1.2.7";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -336,7 +337,7 @@
     const DEFAULT_SETTINGS = {
       apiKey:"",
       apiKey2:"",
-      model:"gemini-2.5-flash",
+      model:"gemini-3.8-flash",
       level:"A2",
       topic:"daily",
       rate:0.9,
@@ -666,9 +667,11 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      // استفاده از مدل استاندارد و به‌روز فلاش
-      const modelName = "gemini-2.5-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+      const primaryModel = settings.model?.trim() || "gemini-3.8-flash";
+      const fallbackModel = "gemini-2.5-flash";
+      
+      const urlPrimary = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent`;
+      const urlFallback = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`;
 
       let lastErrorMsg = "";
 
@@ -683,13 +686,23 @@
             }
           };
 
-          const res = await fetch(url + `?key=${keys[i]}`, {
+          let res = await fetch(urlPrimary + `?key=${keys[i]}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
           });
 
-          const data = await res.json().catch(() => ({}));
+          let data = await res.json().catch(() => ({}));
+
+          // اگر مدل اصلی خطا داد، خودکار مدل پشتیبان را امتحان کن
+          if (!res.ok) {
+            res = await fetch(urlFallback + `?key=${keys[i]}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+            data = await res.json().catch(() => ({}));
+          }
           
           if (!res.ok) {
             lastErrorMsg = data?.error?.message || `خطای ارتباط با سرور (${res.status})`;
@@ -1190,7 +1203,13 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
-      $("modelIn").value = "gemini-2.5-flash";
+      
+      let currentModel = settings.model || "gemini-3.8-flash";
+      if (!["gemini-3.8-flash", "gemini-2.5-flash"].includes(currentModel)) {
+          currentModel = "gemini-3.8-flash";
+      }
+      $("modelIn").value = currentModel;
+      
       $("rateIn").value = String(settings.rate || 0.9);
       $("rateVal").textContent = String(settings.rate || 0.9);
       $("batchIn").value = String(settings.batch || 10);
@@ -1208,7 +1227,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
         apiKey2: $("apiKeyIn2").value.trim(),
-        model: "gemini-2.5-flash",
+        model: $("modelIn").value,
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
         autoFa: $("autoFaIn").checked,
