@@ -249,9 +249,13 @@
         
         <div class="small">از aistudio.google.com رایگان دریافت کنید.</div>
 
+        <!-- ✅ مدل‌های پایدارتر و جدید به لیست اضافه شدند -->
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-3.8-flash">gemini-3.8-flash (پیشنهادی)</option>
+          <option value="gemini-1.5-flash">gemini-1.5-flash (پایدارترین)</option>
+          <option value="gemini-1.5-pro">gemini-1.5-pro (دقیق‌تر)</option>
+          <option value="gemini-2.0-flash">gemini-2.0-flash (سریع)</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash (جدید)</option>
           <option value="gemini-3.5-flash">gemini-3.5-flash</option>
         </select>
 
@@ -289,7 +293,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.1";
+    const APP_VERSION = "1.2.2";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -325,7 +329,7 @@
     const DEFAULT_SETTINGS = {
       apiKey:"",
       apiKey2:"",
-      model:"gemini-3.8-flash",
+      model:"gemini-1.5-flash", // پیش‌فرض روی پایدارترین مدل تنظیم شد
       level:"A2",
       topic:"daily",
       rate:0.9,
@@ -657,7 +661,7 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      const model = settings.model?.trim() || "gemini-3.8-flash";
+      const model = settings.model?.trim() || "gemini-1.5-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
       let lastErrorMsg = "";
@@ -692,7 +696,7 @@
           return text; 
 
         } catch (e) {
-          lastErrorMsg = e.message || "خطای شبکه";
+          lastErrorMsg = e.message || "خطای شبکه (Failed to fetch)";
         }
       }
 
@@ -785,7 +789,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     function showCurrent() {
       if (!current) return;
 
-      // مدیریت نمایش برای جملات دلخواه انگلیسی
       if (current.customLang === 'en') {
         $("faText").textContent = current.en;
         $("faText").className = "en";
@@ -806,7 +809,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
       $("answerBox").classList.remove("hidden");
 
-      // اگر ورودی انگلیسی بوده، جواب (ترجمه) فارسی است
       if (current.customLang === 'en') {
         $("enText").textContent = current.fa;
         $("enText").className = "fa";
@@ -846,7 +848,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       textToSpeech(cleanWord || word, "en-US", rate);
     };
 
-    // ✅ اصلاح روند دکمه جمله دلخواه
     $("customTranslateBtn").onclick = async () => {
       if ($("customTranslateBtn").classList.contains("rec")) return;
 
@@ -864,7 +865,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           if (!inputSentence || !inputSentence.trim()) throw new Error("متنی وارد نکردید.");
         } else {
           isVoice = true;
-          $("customTranslateBtn").classList.add("rec"); // قرمز میشود فقط هنگام ضبط
+          $("customTranslateBtn").classList.add("rec");
           $("customTranslateBtn").innerHTML = "🔴 بگویید...";
           
           inputSentence = await listen("fa-IR", (text) => {
@@ -872,13 +873,12 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           });
           if (!inputSentence) throw new Error("چیزی شنیده نشد.");
           
-          $("customTranslateBtn").classList.remove("rec"); // برداشتن رنگ قرمز
+          $("customTranslateBtn").classList.remove("rec");
         }
 
         $("customTranslateBtn").innerHTML = "⏳ آماده‌سازی...";
         $("faText").innerHTML = `<div class="loader">⏳ در حال تنظیم جمله شما...</div>`;
 
-        // تشخیص خودکار زبان ورودی
         const isPersian = /[\u0600-\u06FF]/.test(inputSentence);
 
         const promptText = `
@@ -901,7 +901,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const obj = JSON.parse(cleaned);
 
-        // ذخیره زبان اصلی برای نمایش صحیح در کارت
         const newItem = {
           fa: isPersian ? inputSentence : obj.fa,
           en: isPersian ? obj.en : inputSentence,
@@ -1188,9 +1187,9 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
       
-      let currentModel = settings.model || "gemini-3.8-flash";
-      if (!["gemini-3.8-flash", "gemini-3.5-flash"].includes(currentModel)) {
-          currentModel = "gemini-3.8-flash";
+      let currentModel = settings.model || "gemini-1.5-flash";
+      if (!["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-3.8-flash", "gemini-3.5-flash"].includes(currentModel)) {
+          currentModel = "gemini-1.5-flash";
       }
       $("modelIn").value = currentModel;
       
