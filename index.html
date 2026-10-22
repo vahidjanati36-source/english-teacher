@@ -134,6 +134,17 @@
       margin-top:8px; font-size:13px; line-height:1.7;
     }
     .tiny{font-size:12px; color:#666}
+    .version-badge {
+      text-align: center; 
+      font-weight: bold; 
+      color: var(--g); 
+      background: var(--gl); 
+      padding: 12px; 
+      border-radius: 12px; 
+      margin-bottom: 16px;
+      border: 1px solid #c8e6c9;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -241,6 +252,9 @@
 
     <section id="tab-settings">
       <div class="card">
+        <!-- ✅ نمایش برجسته نسخه در بالای تنظیمات -->
+        <div class="version-badge">✅ نسخه نصب شده: <span id="verTop">...</span></div>
+
         <label>🔑 کلید API Gemini (اصلی)</label>
         <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
         
@@ -276,7 +290,6 @@
         </div>
         <button id="testVoice" style="width:100%;margin-top:10px">🔈 تست صداها</button>
         <div id="voiceInfo" class="small" style="margin-top:8px"></div>
-        <div class="small" style="margin-top:10px">نسخه برنامه: <span id="ver"></span></div>
       </div>
     </section>
   </main>
@@ -289,7 +302,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.3";
+    const APP_VERSION = "1.2.4";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -674,7 +687,6 @@
             }
           };
 
-          // تلاش با مدل اصلی
           let res = await fetch(urlPrimary + `?key=${keys[i]}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -683,7 +695,6 @@
 
           let data = await res.json().catch(() => ({}));
 
-          // اگر خطای شلوغی بود، به مدل جایگزین سوییچ کن
           if (!res.ok && data?.error?.status === 'UNAVAILABLE') {
             console.log(`مدل ${primaryModel} شلوغ است، تلاش با ${fallbackModel}...`);
             res = await fetch(urlFallback + `?key=${keys[i]}`, {
@@ -1207,7 +1218,9 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       $("batchIn").value = String(settings.batch || 10);
       $("autoFaIn").checked = !!settings.autoFa;
       $("autoEnIn").checked = !!settings.autoEn;
-      $("ver").textContent = APP_VERSION;
+      
+      // ✅ نمایش نسخه در دو نقطه (بالا و پایین)
+      $("verTop").textContent = APP_VERSION;
     }
 
     $("rateIn").oninput = () => {
@@ -1218,7 +1231,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("saveSet").onclick = () => {
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
-        apiKey2: $("apiKey2In").value.trim(),
+        apiKey2: $("apiKeyIn2").value.trim(), // اصلاح باگ تایپی
         model: $("modelIn").value,
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
