@@ -69,7 +69,7 @@
       display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
     }
     #micBtn{grid-column:span 2; padding:18px; font-size:18px}
-    #micBtn.rec, #customTranslateBtn.rec {
+    #micBtn.rec, #customTranslateBtn.rec, #gtMic.rec {
       background:var(--r); color:#fff; animation:blink 1s infinite;
     }
     @keyframes blink{50%{opacity:.7}}
@@ -145,6 +145,23 @@
       border: 1px solid #c8e6c9;
       font-size: 16px;
     }
+    /* استایل بخش مترجم سریع */
+    .gt-box {
+      background: #eef7ee;
+      border: 2px dashed var(--g);
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 14px;
+    }
+    .gt-title {
+      font-weight: bold;
+      color: var(--g);
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
   </style>
 </head>
 <body>
@@ -181,7 +198,7 @@
 
         <div class="big-btns">
           <button id="micBtn" class="main">🎤 حالا انگلیسی بگو</button>
-          <button id="customTranslateBtn">📝 جمله دلخواه</button>
+          <button id="customTranslateBtn">📝 جمله دلخواه (سریع)</button>
           <button id="showBtn">👁 نمایش جواب</button>
         </div>
 
@@ -215,6 +232,19 @@
         </div>
 
         <button id="nextBtn" class="main" style="width:100%;margin-top:12px">⏭ جمله بعدی</button>
+
+        <!-- ✅ بخش اضافه شده: مترجم گوگل فوری در قسمت پایین کارت -->
+        <div class="gt-box">
+          <div class="gt-title">🌐 مترجم آنلاین فوری (گوگل ترنسلیت)</div>
+          <div class="row">
+            <input id="gtInput" placeholder="جمله‌ات رو بگو یا بنویس..." />
+            <button id="gtMic">🎤</button>
+            <button id="gtTranslateBtn" class="main">ترجمه</button>
+          </div>
+          <div id="gtResult" class="en" style="font-size: 16px; margin-top: 8px; display: none;"></div>
+          <button id="gtSpeakBtn" class="hidden" style="margin-top: 6px; font-size: 12px;">🔊 پخش تلفظ انگلیسی</button>
+        </div>
+
       </div>
     </section>
 
@@ -264,7 +294,7 @@
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-3.8-flash">gemini-3.8-flash (اصلی و جدید)</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash (سریع و جدید)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -286,7 +316,7 @@
           <button id="importBtn">بازیابی</button>
           <input type="file" id="importFile" accept=".json" class="hidden" />
         </div>
-        <button id="testVoice" style="width:100%_margin-top:10px">🔈 تست صداها</button>
+        <button id="testVoice" style="width:100%;margin-top:10px">🔈 تست صداها</button>
         <div id="voiceInfo" class="small" style="margin-top:8px"></div>
       </div>
     </section>
@@ -300,7 +330,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.2.8";
+    const APP_VERSION = "1.3.0";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -346,7 +376,6 @@
     };
 
     let settings = Object.assign({}, DEFAULT_SETTINGS, DB.get("settings", {}));
-    // اجبار به استفاده از مدل جدید حتی اگر در حافظه مرورگر مدل قدیمی ذخیره شده باشد
     settings.model = "gemini-3.8-flash";
     
     let library = DB.get("library", []);
@@ -669,7 +698,6 @@
       
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      // اجبار به استفاده از مدل جدید و بدون خطای 3.8
       const modelName = "gemini-3.8-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
@@ -681,7 +709,7 @@
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             systemInstruction: { parts: [{ text: systemPrompt }] },
             generationConfig: {
-              temperature: 0.8,
+              temperature: 0.3,
               ...(asJson ? { responseMimeType: "application/json" } : {})
             }
           };
@@ -725,7 +753,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 قوانین:
 - جمله‌ها طبیعی، محاوره‌ای و واقعی باشند.
 - ترجمه کلمه‌به‌کلمه نباشند.
-- تنوع گرامری داشته باشند.
 - این‌ها را تکرار نکن: ${recent || "ندارد"}
 خروجی فقط JSON است، فقط آرایه‌ای مثل:
 [
@@ -883,28 +910,19 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           $("customTranslateBtn").classList.remove("rec");
         }
 
-        $("customTranslateBtn").innerHTML = "⏳ آماده‌سازی...";
-        $("faText").innerHTML = `<div class="loader">⏳ در حال تنظیم جمله شما...</div>`;
+        $("customTranslateBtn").innerHTML = "⚡ ترجمه سریع...";
+        $("faText").innerHTML = `<div class="loader">⚡ در حال آماده‌سازی سریع...</div>`;
 
         const isPersian = /[\u0600-\u06FF]/.test(inputSentence);
 
+        // پرومپت سبک‌تر برای افزایش سرعت شدید
         const promptText = `
-متن ورودی کاربر: "${inputSentence}"
-اگر این متن انگلیسی است، یک ترجمه فارسی روان برای آن بنویس.
-اگر این متن فارسی است، بهترین ترجمه انگلیسی محاوره‌ای را برای آن بنویس.
-سطح کاربر: ${settings.level}
-
-خروجی فقط یک شیء JSON دقیقاً با این ساختار باشد:
-{
-  "fa": "ترجمه فارسی",
-  "en": "ترجمه انگلیسی",
-  "alts": ["جمله جایگزین انگلیسی ۱", "جمله جایگزین انگلیسی ۲"],
-  "note": "توضیح کوتاه گرامری یا اصطلاحی به فارسی",
-  "words": [{"en":"کلمه مهم", "fa":"معنی", "pron":"تلفظ"}]
-}
-فقط JSON برگردان.
+متن: "${inputSentence}"
+ترجمه روانی بین انگلیسی و فارسی ارائه بده.
+JSON دقیق:
+{"fa":"ترجمه فارسی","en":"ترجمه انگلیسی","alts":[],"note":"","words":[]}
 `;
-        const raw = await geminiCall(promptText, "تو یک مترجم و معلم حرفه‌ای زبان هستی.", true);
+        const raw = await geminiCall(promptText, "مترجم سریع", true);
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const obj = JSON.parse(cleaned);
 
@@ -931,7 +949,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
         $("aiCheckBox").innerHTML = "";
         $("typeInput").value = "";
         showCurrent();
-        $("modeInfo").textContent = "✅ جمله اختصاصی شما آماده شد! حالا پاسخ خود را بگویید.";
+        $("modeInfo").textContent = "✅ جمله آماده شد! حالا انگلیسی اون رو بگو.";
         updateStats();
 
       } catch (err) {
@@ -939,6 +957,67 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       } finally {
         $("customTranslateBtn").classList.remove("rec");
         $("customTranslateBtn").innerHTML = originalText;
+      }
+    };
+
+    /* ✅ عملکرد مترجم گوگل آنلاین در بخش پایین */
+    let lastGtTranslation = "";
+    async function doGoogleTranslate(text) {
+      if (!text || !text.trim()) return;
+      $("gtResult").style.display = "block";
+      $("gtResult").textContent = "⏳ در حال ترجمه سریع...";
+      $("gtSpeakBtn").classList.add("hidden");
+
+      try {
+        const isPersian = /[\u0600-\u06FF]/.test(text);
+        const sl = isPersian ? "fa" : "en";
+        const tl = isPersian ? "en" : "fa";
+        
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`);
+        const data = await res.json();
+        
+        let translatedText = "";
+        if (data && data[0]) {
+          data[0].forEach(item => { if (item[0]) translatedText += item[0]; });
+        }
+
+        if (translatedText) {
+          lastGtTranslation = isPersian ? translatedText : text;
+          $("gtResult").textContent = "🔤 " + translatedText;
+          $("gtSpeakBtn").classList.remove("hidden");
+        } else {
+          $("gtResult").textContent = "خطا در دریافت ترجمه.";
+        }
+      } catch (e) {
+        $("gtResult").textContent = "خطا در اتصال به مترجم.";
+      }
+    }
+
+    $("gtTranslateBtn").onclick = () => {
+      const txt = $("gtInput").value;
+      doGoogleTranslate(txt);
+    };
+
+    $("gtMic").onclick = async () => {
+      $("gtMic").classList.add("rec");
+      try {
+        const result = await listen("fa-IR", (text) => {
+          $("gtInput").value = text;
+        });
+        if (result) {
+          $("gtInput").value = result;
+          doGoogleTranslate(result);
+        }
+      } catch (err) {
+        alert(err);
+      } finally {
+        $("gtMic").classList.remove("rec");
+      }
+    };
+
+    $("gtSpeakBtn").onclick = () => {
+      if (lastGtTranslation) {
+        textToSpeech(lastGtTranslation, "en-US", settings.rate);
       }
     };
 
@@ -1224,7 +1303,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     $("exportBtn").onclick = () => {
       const payload = JSON.stringify({ version: APP_VERSION, library, chat: chatHist }, null, 2);
-      const blob = new Blob([payload], { type: "application/json" }, { type: "application/json" });
+      const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
