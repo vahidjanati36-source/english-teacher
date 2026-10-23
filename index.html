@@ -145,7 +145,6 @@
       border: 1px solid #c8e6c9;
       font-size: 16px;
     }
-    /* استایل بخش مترجم سریع */
     .gt-box {
       background: #eef7ee;
       border: 2px dashed var(--g);
@@ -233,7 +232,7 @@
 
         <button id="nextBtn" class="main" style="width:100%;margin-top:12px">⏭ جمله بعدی</button>
 
-        <!-- ✅ بخش اضافه شده: مترجم گوگل فوری در قسمت پایین کارت -->
+        <!-- مترجم گوگل آنلاین سریع -->
         <div class="gt-box">
           <div class="gt-title">🌐 مترجم آنلاین فوری (گوگل ترنسلیت)</div>
           <div class="row">
@@ -294,7 +293,7 @@
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
-          <option value="gemini-3.8-flash">gemini-3.8-flash (سریع و جدید)</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash (اصلی)</option>
         </select>
 
         <label>سرعت صدای انگلیسی: <span id="rateVal"></span></label>
@@ -304,7 +303,6 @@
         <input id="batchIn" type="number" min="3" max="20" />
 
         <label><input type="checkbox" id="autoFaIn" style="flex:0" /> خواندن خودکار جمله فارسی</label>
-        <label><input type="checkbox" id="autoEnIn" style="flex:0" /> خواندن خودکار انگلیسی هنگام نمایش جواب</label>
 
         <button id="saveSet" class="main" style="width:100%;margin-top:12px">ذخیره تنظیمات</button>
       </div>
@@ -330,7 +328,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.3.0";
+    const APP_VERSION = "1.3.1";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -376,7 +374,6 @@
     };
 
     let settings = Object.assign({}, DEFAULT_SETTINGS, DB.get("settings", {}));
-    settings.model = "gemini-3.8-flash";
     
     let library = DB.get("library", []);
     let chatHist = DB.get("chat", []);
@@ -693,51 +690,59 @@
       updateStats();
     }
 
-    async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی برای فارسی‌زبان‌ها هستی.", asJson = false) {
+    /* ✅ تابع هوشمند فراخوانی Gemini با سوئیچ سریع بین ۳ مدل */
+    async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی هستی.", asJson = false) {
       const keys = [settings.apiKey, settings.apiKey2].filter(k => k && k.trim() !== "");
-      
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      const modelName = "gemini-3.8-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
-
+      // فهرست مدل‌ها به ترتیب برای سوئیچ خودکار در صورت شلوغی سرور
+      const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
       let lastErrorMsg = "";
 
-      for (let i = 0; i < keys.length; i++) {
-        try {
-          const body = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            generationConfig: {
-              temperature: 0.3,
-              ...(asJson ? { responseMimeType: "application/json" } : {})
+      for (let key of keys) {
+        for (let modelName of modelsToTry) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
+            const body = {
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              generationConfig: {
+                temperature: 0.3,
+                ...(asJson ? { responseMimeType: "application/json" } : {})
+              }
+            };
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000); // ۱۰ ثانیه تایم‌اوت هوشمند
+
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok) {
+              const text = (data.candidates?.[0]?.content?.parts || [])
+                .map(p => p.text || "")
+                .join("");
+              if (text) return text;
             }
-          };
 
-          const res = await fetch(url + `?key=${keys[i]}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          });
+            // اگر مدل شلوغ بود یا خطا داد سریع به مدل بعدی برو
+            lastErrorMsg = data?.error?.message || `خطای مدل ${modelName}`;
+            console.log(`تغییر مدل از ${modelName} به دلیل: ${lastErrorMsg}`);
 
-          const data = await res.json().catch(() => ({}));
-          
-          if (!res.ok) {
-            lastErrorMsg = data?.error?.message || `خطای ارتباط با سرور (${res.status})`;
-            continue; 
+          } catch (e) {
+            lastErrorMsg = e.name === 'AbortError' ? 'زمان پاسخ‌دهی تمام شد (سوئیچ به مدل بعدی...)' : e.message;
           }
-
-          const text = (data.candidates?.[0]?.content?.parts || [])
-            .map(p => p.text || "")
-            .join("");
-          return text; 
-
-        } catch (e) {
-          lastErrorMsg = e.message || "خطای شبکه (Failed to fetch)";
         }
       }
 
-      throw new Error(lastErrorMsg + " (هر دو کلید بررسی شدند)");
+      throw new Error(lastErrorMsg + " (تمامی مدل‌ها و کلیدها بررسی شدند)");
     }
 
     async function fetchSentences() {
@@ -750,17 +755,12 @@
 ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 سطح: ${settings.level}
 موضوع: ${topic}
-قوانین:
-- جمله‌ها طبیعی، محاوره‌ای و واقعی باشند.
-- ترجمه کلمه‌به‌کلمه نباشند.
-- این‌ها را تکرار نکن: ${recent || "ندارد"}
-خروجی فقط JSON است، فقط آرایه‌ای مثل:
-[
-  {"fa":"...", "en":"...", "alts":["..."], "note":"...", "words":[{"en":"...", "fa":"...", "pron":"..."}]}
-]
+تکراری نباشد: ${recent || "ندارد"}
+فقط JSON برگردان:
+[{"fa":"...", "en":"...", "alts":[], "note":"", "words":[]}]
 `;
 
-      const raw = await geminiCall(prompt, "تو معلم حرفه‌ای زبان انگلیسی برای فارسی‌زبانان هستی.", true);
+      const raw = await geminiCall(prompt, "معلم زبان", true);
       const cleaned = raw.replace(/```json|```/gi, "").trim();
       let arr = [];
       try {
@@ -910,19 +910,18 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
           $("customTranslateBtn").classList.remove("rec");
         }
 
-        $("customTranslateBtn").innerHTML = "⚡ ترجمه سریع...";
-        $("faText").innerHTML = `<div class="loader">⚡ در حال آماده‌سازی سریع...</div>`;
+        $("customTranslateBtn").innerHTML = "⚡ پردازش سریع...";
+        $("faText").innerHTML = `<div class="loader">⚡ در حال ساخت ترجمه...</div>`;
 
         const isPersian = /[\u0600-\u06FF]/.test(inputSentence);
 
-        // پرومپت سبک‌تر برای افزایش سرعت شدید
         const promptText = `
 متن: "${inputSentence}"
-ترجمه روانی بین انگلیسی و فارسی ارائه بده.
-JSON دقیق:
+ترجمه روان بین انگلیسی و فارسی ارائه بده.
+فقط JSON برگردان:
 {"fa":"ترجمه فارسی","en":"ترجمه انگلیسی","alts":[],"note":"","words":[]}
 `;
-        const raw = await geminiCall(promptText, "مترجم سریع", true);
+        const raw = await geminiCall(promptText, "مترجم زبان", true);
         const cleaned = raw.replace(/```json|```/gi, "").trim();
         const obj = JSON.parse(cleaned);
 
@@ -949,7 +948,7 @@ JSON دقیق:
         $("aiCheckBox").innerHTML = "";
         $("typeInput").value = "";
         showCurrent();
-        $("modeInfo").textContent = "✅ جمله آماده شد! حالا انگلیسی اون رو بگو.";
+        $("modeInfo").textContent = "✅ جمله اختصاصی شما آماده شد!";
         updateStats();
 
       } catch (err) {
@@ -960,7 +959,6 @@ JSON دقیق:
       }
     };
 
-    /* ✅ عملکرد مترجم گوگل آنلاین در بخش پایین */
     let lastGtTranslation = "";
     async function doGoogleTranslate(text) {
       if (!text || !text.trim()) return;
@@ -1277,7 +1275,6 @@ JSON دقیق:
       $("rateVal").textContent = String(settings.rate || 0.9);
       $("batchIn").value = String(settings.batch || 10);
       $("autoFaIn").checked = !!settings.autoFa;
-      $("autoEnIn").checked = !!settings.autoEn;
       $("verTop").textContent = APP_VERSION;
     }
 
@@ -1293,8 +1290,7 @@ JSON دقیق:
         model: "gemini-3.8-flash",
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
-        autoFa: $("autoFaIn").checked,
-        autoEn: $("autoEnIn").checked
+        autoFa: $("autoFaIn").checked
       });
       DB.set("settings", settings);
       updateModeInfo();
