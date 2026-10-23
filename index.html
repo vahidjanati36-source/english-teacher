@@ -328,7 +328,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.3.1";
+    const APP_VERSION = "1.3.2";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -690,59 +690,54 @@
       updateStats();
     }
 
-    /* ✅ تابع هوشمند فراخوانی Gemini با سوئیچ سریع بین ۳ مدل */
+    /* ✅ تابع استاندارد و پایدار فراخوانی جمنای بدون خطای مدل‌های منسوخ */
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی هستی.", asJson = false) {
       const keys = [settings.apiKey, settings.apiKey2].filter(k => k && k.trim() !== "");
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
-      // فهرست مدل‌ها به ترتیب برای سوئیچ خودکار در صورت شلوغی سرور
-      const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
+      // مدل استاندارد و پایدار فعلی
+      const modelName = "gemini-2.5-flash";
       let lastErrorMsg = "";
 
       for (let key of keys) {
-        for (let modelName of modelsToTry) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
-            const body = {
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              systemInstruction: { parts: [{ text: systemPrompt }] },
-              generationConfig: {
-                temperature: 0.3,
-                ...(asJson ? { responseMimeType: "application/json" } : {})
-              }
-            };
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 12000); // ۱۰ ثانیه تایم‌اوت هوشمند
-
-            const res = await fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-              signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            const data = await res.json().catch(() => ({}));
-
-            if (res.ok) {
-              const text = (data.candidates?.[0]?.content?.parts || [])
-                .map(p => p.text || "")
-                .join("");
-              if (text) return text;
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
+          const body = {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: {
+              temperature: 0.3,
+              ...(asJson ? { responseMimeType: "application/json" } : {})
             }
+          };
 
-            // اگر مدل شلوغ بود یا خطا داد سریع به مدل بعدی برو
-            lastErrorMsg = data?.error?.message || `خطای مدل ${modelName}`;
-            console.log(`تغییر مدل از ${modelName} به دلیل: ${lastErrorMsg}`);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-          } catch (e) {
-            lastErrorMsg = e.name === 'AbortError' ? 'زمان پاسخ‌دهی تمام شد (سوئیچ به مدل بعدی...)' : e.message;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          const data = await res.json().catch(() => ({}));
+
+          if (res.ok) {
+            const text = (data.candidates?.[0]?.content?.parts || [])
+              .map(p => p.text || "")
+              .join("");
+            if (text) return text;
           }
+
+          lastErrorMsg = data?.error?.message || `خطای ارتباط با سرور (${res.status})`;
+        } catch (e) {
+          lastErrorMsg = e.name === 'AbortError' ? 'زمان پاسخ‌دهی تمام شد.' : e.message;
         }
       }
 
-      throw new Error(lastErrorMsg + " (تمامی مدل‌ها و کلیدها بررسی شدند)");
+      throw new Error(lastErrorMsg + " (کلیدها بررسی شدند)");
     }
 
     async function fetchSentences() {
@@ -1270,7 +1265,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
-      $("modelIn").value = "gemini-3.8-flash";
+      $("modelIn").value = "gemini-2.5-flash";
       $("rateIn").value = String(settings.rate || 0.9);
       $("rateVal").textContent = String(settings.rate || 0.9);
       $("batchIn").value = String(settings.batch || 10);
@@ -1287,7 +1282,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
         apiKey2: $("apiKeyIn2").value.trim(),
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
         autoFa: $("autoFaIn").checked
