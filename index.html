@@ -161,6 +161,10 @@
       align-items: center;
       gap: 6px;
     }
+    .btn-clear {
+      background: #ffebee;
+      color: var(--r);
+    }
   </style>
 </head>
 <body>
@@ -237,8 +241,11 @@
           <div class="gt-title">🌐 مترجم آنلاین فوری (گوگل ترنسلیت)</div>
           <div class="row">
             <input id="gtInput" placeholder="جمله‌ات رو بگو یا بنویس..." />
+          </div>
+          <div class="row" style="margin-top: 8px;">
+            <button id="gtClearBtn" class="btn-clear">🗑 پاک‌کردن</button>
             <button id="gtMic">🎤</button>
-            <button id="gtTranslateBtn" class="main">ترجمه</button>
+            <button id="gtTranslateBtn" class="main" style="flex: 1;">ترجمه</button>
           </div>
           <div id="gtResult" class="en" style="font-size: 16px; margin-top: 8px; display: none;"></div>
           <button id="gtSpeakBtn" class="hidden" style="margin-top: 6px; font-size: 12px;">🔊 پخش تلفظ انگلیسی</button>
@@ -328,7 +335,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.3.4";
+    const APP_VERSION = "1.3.5";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -374,7 +381,7 @@
     };
 
     let settings = Object.assign({}, DEFAULT_SETTINGS, DB.get("settings", {}));
-    settings.model = "gemini-3.8-flash"; // اجباری کردن مدل ۳.۸
+    settings.model = "gemini-3.8-flash";
     
     let library = DB.get("library", []);
     let chatHist = DB.get("chat", []);
@@ -691,7 +698,6 @@
       updateStats();
     }
 
-    /* ✅ استفاده قطعی از مدل gemini-3.8-flash در ارتباط با API */
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی هستی.", asJson = false) {
       const keys = [settings.apiKey, settings.apiKey2].filter(k => k && k.trim() !== "");
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
@@ -989,6 +995,15 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("gtTranslateBtn").onclick = () => {
       const txt = $("gtInput").value;
       doGoogleTranslate(txt);
+    };
+
+    // اضافه شدن تابع پاک کردن سریع کادر مترجم
+    $("gtClearBtn").onclick = () => {
+      $("gtInput").value = "";
+      $("gtResult").style.display = "none";
+      $("gtResult").textContent = "";
+      $("gtSpeakBtn").classList.add("hidden");
+      lastGtTranslation = "";
     };
 
     $("gtMic").onclick = async () => {
