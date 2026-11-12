@@ -290,13 +290,17 @@
       <div class="card">
         <div class="version-badge">✅ نسخه نصب شده: <span id="verTop">...</span></div>
 
-        <label>🔑 کلید API Gemini (اصلی)</label>
+        <label>🔑 کلید API اصلی (Gemini)</label>
         <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
-        
-        <label>🔑 کلید API Gemini (پشتیبان)</label>
-        <input id="apiKeyIn2" class="ltr" placeholder="AIza... (اختیاری)" />
-        
-        <div class="small">از aistudio.google.com رایگان دریافت کنید.</div>
+        <input id="apiSource1In" placeholder="نام منبع یا سایت مرجع (مثلاً Google AI Studio)" style="margin-top: 6px; font-size: 13px;" />
+
+        <label>🔑 کلید API پشتیبان</label>
+        <input id="apiKeyIn2" class="ltr" placeholder="AIza..." />
+        <input id="apiSource2In" placeholder="نام منبع یا سایت مرجع (اختیاری)" style="margin-top: 6px; font-size: 13px;" />
+
+        <label>🔑 کلید API سوم (متفرقه / پشتیبان)</label>
+        <input id="apiKeyIn3" class="ltr" placeholder="کلید API جدید..." />
+        <input id="apiSource3In" placeholder="نام منبع یا سایت مرجع (مثلاً Atria)" style="margin-top: 6px; font-size: 13px;" />
 
         <label>مدل هوش مصنوعی</label>
         <select id="modelIn" class="ltr">
@@ -335,7 +339,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.3.5";
+    const APP_VERSION = "1.3.6";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -370,7 +374,11 @@
 
     const DEFAULT_SETTINGS = {
       apiKey:"",
+      apiSource1:"",
       apiKey2:"",
+      apiSource2:"",
+      apiKey3:"",
+      apiSource3:"",
       model:"gemini-3.8-flash",
       level:"A2",
       topic:"daily",
@@ -526,7 +534,8 @@
     }
 
     function updateModeInfo() {
-      const msg = !settings.apiKey
+      const hasKey = settings.apiKey || settings.apiKey2 || settings.apiKey3;
+      const msg = !hasKey
         ? "💡 برای ساخت جمله‌های جدید، کلید API را در ⚙️ تنظیمات وارد کنید."
         : "✅ آماده برای تمرین";
       $("modeInfo").textContent = msg;
@@ -698,16 +707,22 @@
       updateStats();
     }
 
+    /* ✅ چرخش بین کلیدهای مختلف در صورت کار نکردن کلید قبلی */
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی هستی.", asJson = false) {
-      const keys = [settings.apiKey, settings.apiKey2].filter(k => k && k.trim() !== "");
+      const keys = [
+        { key: settings.apiKey, source: settings.apiSource1 || "اصلی" },
+        { key: settings.apiKey2, source: settings.apiSource2 || "پشتیبان ۱" },
+        { key: settings.apiKey3, source: settings.apiSource3 || "پشتیبان ۲ (متفرقه)" }
+      ].filter(item => item.key && item.key.trim() !== "");
+
       if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
 
       const modelName = "gemini-3.8-flash";
       let lastErrorMsg = "";
 
-      for (let key of keys) {
+      for (let item of keys) {
         try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${item.key}`;
           const body = {
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -997,7 +1012,6 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
       doGoogleTranslate(txt);
     };
 
-    // اضافه شدن تابع پاک کردن سریع کادر مترجم
     $("gtClearBtn").onclick = () => {
       $("gtInput").value = "";
       $("gtResult").style.display = "none";
@@ -1279,7 +1293,11 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
 
     function loadSettingsUI() {
       $("apiKeyIn").value = settings.apiKey || "";
+      $("apiSource1In").value = settings.apiSource1 || "";
       $("apiKeyIn2").value = settings.apiKey2 || "";
+      $("apiSource2In").value = settings.apiSource2 || "";
+      $("apiKeyIn3").value = settings.apiKey3 || "";
+      $("apiSource3In").value = settings.apiSource3 || "";
       $("modelIn").value = "gemini-3.8-flash";
       $("rateIn").value = String(settings.rate || 0.9);
       $("rateVal").textContent = String(settings.rate || 0.9);
@@ -1296,7 +1314,11 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     $("saveSet").onclick = () => {
       settings = Object.assign({}, settings, {
         apiKey: $("apiKeyIn").value.trim(),
+        apiSource1: $("apiSource1In").value.trim(),
         apiKey2: $("apiKeyIn2").value.trim(),
+        apiSource2: $("apiSource2In").value.trim(),
+        apiKey3: $("apiKeyIn3").value.trim(),
+        apiSource3: $("apiSource3In").value.trim(),
         model: "gemini-3.8-flash",
         rate: Number($("rateIn").value),
         batch: Number($("batchIn").value) || 10,
