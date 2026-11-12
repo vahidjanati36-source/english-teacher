@@ -291,15 +291,15 @@
         <div class="version-badge">✅ نسخه نصب شده: <span id="verTop">...</span></div>
 
         <label>🔑 کلید API اصلی (Gemini)</label>
-        <input id="apiKeyIn" class="ltr" placeholder="AIza..." />
-        <input id="apiSource1In" placeholder="نام منبع یا سایت مرجع (مثلاً Google AI Studio)" style="margin-top: 6px; font-size: 13px;" />
+        <input id="apiKeyIn" class="ltr" placeholder="AQ..." />
+        <input id="apiSource1In" placeholder="نام منبع یا سایت مرجع" style="margin-top: 6px; font-size: 13px;" />
 
         <label>🔑 کلید API پشتیبان</label>
-        <input id="apiKeyIn2" class="ltr" placeholder="AIza..." />
+        <input id="apiKeyIn2" class="ltr" placeholder="AQ..." />
         <input id="apiSource2In" placeholder="نام منبع یا سایت مرجع (اختیاری)" style="margin-top: 6px; font-size: 13px;" />
 
         <label>🔑 کلید API سوم (متفرقه / پشتیبان)</label>
-        <input id="apiKeyIn3" class="ltr" placeholder="کلید API جدید..." />
+        <input id="apiKeyIn3" class="ltr" placeholder="sk-..." />
         <input id="apiSource3In" placeholder="نام منبع یا سایت مرجع (مثلاً Atria)" style="margin-top: 6px; font-size: 13px;" />
 
         <label>مدل هوش مصنوعی</label>
@@ -339,7 +339,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.3.6";
+    const APP_VERSION = "1.3.7";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -707,15 +707,15 @@
       updateStats();
     }
 
-    /* ✅ چرخش بین کلیدهای مختلف در صورت کار نکردن کلید قبلی */
+    /* ✅ انعطاف‌پذیری در ارسال درخواست به API بدون محدودیت ساختار کلید */
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی هستی.", asJson = false) {
       const keys = [
         { key: settings.apiKey, source: settings.apiSource1 || "اصلی" },
-        { key: settings.apiKey2, source: settings.apiSource2 || "پشتیبان ۱" },
-        { key: settings.apiKey3, source: settings.apiSource3 || "پشتیبان ۲ (متفرقه)" }
+        { key: settings.apiKey2, source: settings.apiSource2 || "پشتیبان" },
+        { key: settings.apiKey3, source: settings.apiSource3 || "سوم" }
       ].filter(item => item.key && item.key.trim() !== "");
 
-      if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید Gemini را وارد کنید.");
+      if (keys.length === 0) throw new Error("کلید API وارد نشده است. در تنظیمات، کلید معتبر را وارد کنید.");
 
       const modelName = "gemini-3.8-flash";
       let lastErrorMsg = "";
@@ -1413,7 +1413,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     };
 
     $("levelSel").onchange = () => {
-      settings.level = $("levelSel").value;
+      settings.level = $("levelSel].value";
       DB.set("settings", settings);
       queue = [];
       if (!reviewMode) {
