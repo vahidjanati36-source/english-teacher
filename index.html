@@ -339,7 +339,7 @@
   </nav>
 
   <script>
-    const APP_VERSION = "1.3.7";
+    const APP_VERSION = "1.3.8";
     const $ = (id) => document.getElementById(id);
 
     const DB = {
@@ -707,7 +707,6 @@
       updateStats();
     }
 
-    /* ✅ انعطاف‌پذیری در ارسال درخواست به API بدون محدودیت ساختار کلید */
     async function geminiCall(prompt, systemPrompt = "تو معلم زبان انگلیسی هستی.", asJson = false) {
       const keys = [
         { key: settings.apiKey, source: settings.apiSource1 || "اصلی" },
@@ -1413,7 +1412,7 @@ ${settings.batch} جمله برای تمرین زبان انگلیسی بساز.
     };
 
     $("levelSel").onchange = () => {
-      settings.level = $("levelSel].value";
+      settings.level = $("levelSel").value;
       DB.set("settings", settings);
       queue = [];
       if (!reviewMode) {
